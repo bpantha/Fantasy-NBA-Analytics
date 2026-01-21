@@ -854,27 +854,48 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                     # Use nine_cat_averages property which is more reliable
                     avg_stats = {}
                     if hasattr(player, 'nine_cat_averages'):
-                        avg_stats = player.nine_cat_averages
-                    else:
-                        # Fallback to stats dict
+                        try:
+                            avg_stats = player.nine_cat_averages
+                        except:
+                            avg_stats = {}
+                    
+                    # If nine_cat_averages is empty or doesn't exist, try stats dict
+                    if not avg_stats:
                         player_stats = getattr(player, 'stats', {})
                         season_total_key = f'{league.year}_total'
                         if season_total_key in player_stats:
                             avg_stats = player_stats[season_total_key].get('avg', {})
+                    
+                    # If avg_stats is empty, BoxPlayer might not have full stats loaded
+                    # Try to get from player's stats dict directly (BoxPlayer extends Player)
+                    if not avg_stats:
+                        # Check if stats dict exists but avg is not populated
+                        player_stats = getattr(player, 'stats', {})
+                        if player_stats:
+                            # Try different possible keys
+                            for key in [f'{league.year}_total', f'{league.year - 1}_total', '2026_total']:
+                                if key in player_stats:
+                                    season_data = player_stats[key]
+                                    if isinstance(season_data, dict):
+                                        avg_stats = season_data.get('avg', {})
+                                        if avg_stats:
+                                            break
                     
                     if avg_stats:
                         # Track what we're adding for this player
                         player_additions = {}
                         
                         # Add projected stats for this game
-                        pts_add = float(avg_stats.get('PTS', 0))
-                        reb_add = float(avg_stats.get('REB', 0))
-                        ast_add = float(avg_stats.get('AST', 0))
-                        stl_add = float(avg_stats.get('STL', 0))
-                        blk_add = float(avg_stats.get('BLK', 0))
-                        threepm_add = float(avg_stats.get('3PM', 0))
-                        to_add = float(avg_stats.get('TO', 0))
+                        pts_add = float(avg_stats.get('PTS', 0) or 0)
+                        reb_add = float(avg_stats.get('REB', 0) or 0)
+                        ast_add = float(avg_stats.get('AST', 0) or 0)
+                        stl_add = float(avg_stats.get('STL', 0) or 0)
+                        blk_add = float(avg_stats.get('BLK', 0) or 0)
+                        threepm_add = float(avg_stats.get('3PM', 0) or 0)
+                        to_add = float(avg_stats.get('TO', 0) or 0)
                         
+                        # Add stats regardless - even if 0, we want to track it
+                        # (players might contribute in categories other than PTS/REB/AST)
                         projected['PTS'] += pts_add
                         projected['REB'] += reb_add
                         projected['AST'] += ast_add
@@ -882,22 +903,26 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projected['BLK'] += blk_add
                         projected['3PM'] += threepm_add
                         projected['TO'] += to_add
-                        
-                        player_additions = {
-                            'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
-                            'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
-                        }
-                        projection_additions[player_name] = player_additions
+                            
+                            player_additions = {
+                                'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
+                                'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
+                            }
+                            projection_additions[player_name] = player_additions
                         
                         # Track FG and FT for percentages - need to get from stats dict
                         player_stats = getattr(player, 'stats', {})
                         season_total_key = f'{league.year}_total'
                         if season_total_key in player_stats:
                             avg_stats_full = player_stats[season_total_key].get('avg', {})
-                            fg_made += float(avg_stats_full.get('FGM', 0))
-                            fg_attempted += float(avg_stats_full.get('FGA', 0))
-                            ft_made += float(avg_stats_full.get('FTM', 0))
-                            ft_attempted += float(avg_stats_full.get('FTA', 0))
+                            fgm_val = avg_stats_full.get('FGM', 0) or 0
+                            fga_val = avg_stats_full.get('FGA', 0) or 0
+                            ftm_val = avg_stats_full.get('FTM', 0) or 0
+                            fta_val = avg_stats_full.get('FTA', 0) or 0
+                            fg_made += float(fgm_val)
+                            fg_attempted += float(fga_val)
+                            ft_made += float(ftm_val)
+                            ft_attempted += float(fta_val)
                 except Exception as e:
                     print(f"Error getting averages for player {player_name}: {e}")
                     import traceback
@@ -910,16 +935,22 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         if ft_attempted > 0:
             projected['FT%'] = ft_made / ft_attempted
         
-        # Store debug info
+        # Store debug info - include sample of what was added
+        sample_additions = {}
+        for player_name, additions in list(projection_additions.items())[:5]:  # First 5 players
+            sample_additions[player_name] = additions
+        
         projected['_debug'] = {
             'games_found': games_found,
             'remaining_periods': remaining_periods,
-            'projection_additions': projection_additions,
+            'projection_additions_count': len(projection_additions),
+            'sample_additions': sample_additions,  # Show first few for debugging
             'current_scoring_period': current_scoring_period,
             'matchup_scoring_periods': matchup_scoring_periods,
             'all_scoring_periods': scoring_periods,
             'current_matchup_period': current_week,
-            'final_scoring_period': league.finalScoringPeriod
+            'final_scoring_period': league.finalScoringPeriod,
+            'current_stats_sample': {k: v for k, v in list(projected.items())[:5] if k in ['PTS', 'REB', 'AST']}  # Sample of final projected values
         }
         
     except Exception as e:
