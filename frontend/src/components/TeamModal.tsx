@@ -39,6 +39,8 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
           console.error('Error loading week data:', err)
           setLoading(false)
         })
+    } else {
+      setWeekData(null)
     }
   }, [selectedWeek, apiBase])
 
@@ -66,16 +68,16 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
               className="w-full bg-gray-700 text-white px-4 py-2 rounded"
             >
               {weeks.map(week => {
-                // Try to get week dates from weekData if available
-                let label = `Week ${week}`
-                if (weekData && week === selectedWeek && weekData.week_start_date && weekData.week_end_date) {
-                  const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  label = `Week ${week} (${start} - ${end})`
-                }
-                return <option key={week} value={week}>{label}</option>
+                // Load week data to get dates - for now just show week number
+                // Dates will be shown in tooltip/hover if available
+                return <option key={week} value={week}>Week {week}</option>
               })}
             </select>
+            {weekData?.week_start_date && weekData?.week_end_date && (
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+            )}
           </div>
 
           {loading && (
