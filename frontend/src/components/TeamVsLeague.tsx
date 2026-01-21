@@ -350,6 +350,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                 {selectedTeamData.minutes_vs_league_avg > 0 ? '+' : ''}
                 {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs avg
               </p>
+              {weekData && (
+                <p className="text-xs text-orange-200/80 mt-1">League Avg: {weekData.league_avg_minutes.toFixed(1)}</p>
+              )}
             </div>
             
             {bestCategory && (
