@@ -41,6 +41,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add data/analytics/
+          git add -f data/analytics/*.json
           git diff --staged --quiet || git commit -m "Daily analytics update - $(date +'%Y-%m-%d %H:%M:%S UTC')"
           git push
