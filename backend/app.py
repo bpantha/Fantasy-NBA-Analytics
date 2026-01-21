@@ -7,8 +7,12 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
+
+# Add parent directory to path for espn_api imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
@@ -16,6 +20,34 @@ CORS(app)  # Enable CORS for frontend
 # Path to analytics data
 DATA_DIR = Path(__file__).parent.parent / 'data' / 'analytics'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# League configuration
+LEAGUE_ID = int(os.getenv('LEAGUE_ID', '39944776'))
+YEAR = int(os.getenv('YEAR', '2026'))
+ESPN_S2 = os.getenv('ESPN_S2', '')
+ESPN_SWID = os.getenv('ESPN_SWID', '')
+
+def get_league_instance():
+    """Get initialized ESPN League instance"""
+    from espn_api.basketball import League
+    if ESPN_S2 and ESPN_SWID:
+        return League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID)
+    return None
+
+def get_current_week():
+    """Get current matchup period from league summary or live API"""
+    # Try to get from league summary first
+    summary_path = DATA_DIR / 'league_summary.json'
+    if summary_path.exists():
+        with open(summary_path, 'r') as f:
+            summary = json.load(f)
+            return summary.get('current_matchup_period', 1)
+    
+    # Fallback: try live API
+    league = get_league_instance()
+    if league:
+        return league.currentMatchupPeriod
+    return 1
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -37,7 +69,54 @@ def get_available_weeks():
 
 @app.route('/api/week/<int:week>', methods=['GET'])
 def get_week_data(week):
-    """Get analytics data for a specific week"""
+    """Get analytics data for a specific week - uses live data for current week, historical for others"""
+    current_week = get_current_week()
+    
+    # If requesting current week, fetch live data from ESPN API
+    if week == current_week:
+        try:
+            # Import here to avoid circular imports
+            import importlib.util
+            export_path = Path(__file__).parent / 'export_analytics.py'
+            spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+            export_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(export_module)
+            
+            league = get_league_instance()
+            if not league:
+                # Fallback to historical data if API unavailable
+                file_path = DATA_DIR / f'week{week}.json'
+                if file_path.exists():
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                    return jsonify(data)
+                return jsonify({'error': f'Week {week} data not found and API unavailable'}), 404
+            
+            # Fetch live data
+            live_data = export_module.export_week_analytics(league, week)
+            if live_data:
+                return jsonify(live_data)
+            else:
+                # Fallback to historical if live fetch fails
+                file_path = DATA_DIR / f'week{week}.json'
+                if file_path.exists():
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                    return jsonify(data)
+                return jsonify({'error': f'Week {week} data not found'}), 404
+        except Exception as e:
+            print(f"Error fetching live data for week {week}: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to historical data
+            file_path = DATA_DIR / f'week{week}.json'
+            if file_path.exists():
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                return jsonify(data)
+            return jsonify({'error': f'Week {week} data not found'}), 404
+    
+    # For historical weeks, use exported JSON files
     file_path = DATA_DIR / f'week{week}.json'
     if not file_path.exists():
         return jsonify({'error': f'Week {week} data not found'}), 404
@@ -121,21 +200,54 @@ def compare_teams(team1, team2):
 
 @app.route('/api/league/stats', methods=['GET'])
 def get_league_stats():
-    """Get aggregated league statistics across all weeks"""
+    """Get aggregated league statistics across all weeks - uses live data for current week"""
     from collections import defaultdict
     
-    # Load all week data
+    current_week = get_current_week()
+    
+    current_week = get_current_week()
+    
+    # Load all week data files (historical weeks)
     all_weeks_data = []
     weeks = []
     for file in sorted(DATA_DIR.glob('week*.json')):
         week_num = file.stem.replace('week', '')
         try:
             week_num = int(week_num)
+            # Skip current week - we'll fetch it live
+            if week_num == current_week:
+                continue
             weeks.append(week_num)
             with open(file, 'r') as f:
                 all_weeks_data.append(json.load(f))
         except:
             continue
+    
+    # Fetch live data for current week
+    try:
+        # Import here to avoid circular imports
+        import importlib.util
+        export_path = Path(__file__).parent / 'export_analytics.py'
+        spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+        export_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(export_module)
+        
+        league = get_league_instance()
+        if league:
+            live_current_week = export_module.export_week_analytics(league, current_week)
+            if live_current_week:
+                all_weeks_data.append(live_current_week)
+                weeks.append(current_week)
+    except Exception as e:
+        print(f"Error fetching live current week data: {e}")
+        import traceback
+        traceback.print_exc()
+        # Try to load current week from file as fallback
+        current_week_file = DATA_DIR / f'week{current_week}.json'
+        if current_week_file.exists():
+            with open(current_week_file, 'r') as f:
+                all_weeks_data.append(json.load(f))
+                weeks.append(current_week)
     
     if not all_weeks_data:
         return jsonify({'error': 'No week data available'}), 404

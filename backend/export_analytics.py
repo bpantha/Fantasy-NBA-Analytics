@@ -403,12 +403,13 @@ def main():
     with open(DATA_DIR / 'players.json', 'w') as f:
         json.dump(players, f, indent=2, default=json_serial)
     
-    # Export all historical weeks
+    # Export all historical weeks (up to but not including current week)
+    # Current week will be fetched live by the API
     current_period = league.currentMatchupPeriod
     
-    print(f"Exporting all weeks (1 through {current_period})...")
+    print(f"Exporting historical weeks (1 through {current_period - 1})...")
     exported_count = 0
-    for week in range(1, current_period + 1):
+    for week in range(1, current_period):  # Exclude current week
         try:
             print(f"Exporting week {week}...")
             week_data = export_week_analytics(league, week)
@@ -422,7 +423,19 @@ def main():
             print(f"  Error exporting week {week}: {e}")
             continue
     
+    # Also export current week for initial setup/fallback
+    print(f"Exporting current week {current_period} (for fallback)...")
+    try:
+        week_data = export_week_analytics(league, current_period)
+        if week_data:
+            with open(DATA_DIR / f'week{current_period}.json', 'w') as f:
+                json.dump(week_data, f, indent=2, default=json_serial)
+            exported_count += 1
+    except Exception as e:
+        print(f"  Error exporting current week: {e}")
+    
     print(f"Export complete! Exported {exported_count} weeks.")
+    print(f"Note: Week {current_period} will be fetched live by the API when requested.")
 
 if __name__ == '__main__':
     main()
