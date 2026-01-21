@@ -764,18 +764,28 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         
         # Find which scoring periods are in the current matchup period
         matchup_scoring_periods = league.matchup_ids.get(current_week, [])
+        current_scoring_period = league.current_week
+        
         if not matchup_scoring_periods:
             # Fallback: use current scoring period through final
-            current_scoring_period = league.current_week
             matchup_scoring_periods = [str(sp) for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
         
         # Convert to integers and find remaining scoring periods (from current through end of matchup)
-        scoring_periods = [int(sp) for sp in matchup_scoring_periods if str(sp).isdigit()]
-        current_scoring_period = league.current_week
+        # matchup_scoring_periods is a list of strings (scoring period IDs)
+        scoring_periods = []
+        for sp in matchup_scoring_periods:
+            try:
+                sp_int = int(sp)
+                scoring_periods.append(sp_int)
+            except (ValueError, TypeError):
+                continue
+        
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
         print(f"DEBUG: Current week: {current_week}, Current scoring period: {current_scoring_period}")
-        print(f"DEBUG: Matchup scoring periods: {matchup_scoring_periods}, Remaining: {remaining_periods}")
+        print(f"DEBUG: Matchup scoring periods (raw): {matchup_scoring_periods}")
+        print(f"DEBUG: Scoring periods (int): {scoring_periods}, Remaining: {remaining_periods}")
+        print(f"DEBUG: Pro schedule keys (sample): {list(pro_schedule.keys())[:5] if pro_schedule else 'None'}")
         
         # For each remaining scoring period, check which players have games
         games_found = 0
