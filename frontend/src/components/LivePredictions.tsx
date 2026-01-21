@@ -103,7 +103,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
           </button>
         </div>
         <p className="text-xs md:text-sm text-gray-400 mb-4">
-          Predictions based on current lineups, player injuries, and projected stats. Updates in real-time.
+          Predictions based on current accumulated stats + remaining games through Sunday. Only healthy/DTD players included. Click refresh to update.
         </p>
 
         {/* Matchup Selector */}

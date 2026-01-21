@@ -723,9 +723,7 @@ def get_predictions():
         return jsonify({'error': str(e)}), 500
 
 def project_team_stats(box_score, team, opponent, is_home, league, current_week):
-    """Project team stats based on current accumulated stats + remaining games"""
-    from datetime import datetime, timedelta
-    
+    """Project team stats based on current accumulated stats + remaining games through Sunday"""
     standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
     projected = {cat: 0.0 for cat in standard_cats}
     
@@ -741,11 +739,11 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         if not lineup:
             return projected
         
-        # Get current accumulated stats from box score
+        # Get current accumulated stats from box score (what's already happened this week)
         stats = box_score.home_stats if is_home else box_score.away_stats
         
         if stats:
-            # Get current totals (what's already happened this week)
+            # Get current totals (what's already accumulated)
             for cat in standard_cats:
                 if cat in stats:
                     value = stats[cat].get('value', 0)
@@ -761,60 +759,59 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
             if 'FTA' in stats:
                 ft_attempted = float(stats['FTA'].get('value', 0))
         
-        # Get today's date and calculate remaining days until Sunday
-        today = datetime.now().date()
-        # Find next Sunday
-        days_until_sunday = (6 - today.weekday()) % 7
-        if days_until_sunday == 0 and today.weekday() != 6:
-            days_until_sunday = 7
-        sunday = today + timedelta(days=days_until_sunday)
+        # Get pro team schedule (pro_team_id -> scoring_period -> game_data)
+        pro_schedule = league.pro_schedule
         
-        # Get all pro team schedules for the week
-        pro_schedule = league._get_all_pro_schedule()
+        # Find which scoring periods are in the current matchup period
+        matchup_scoring_periods = league.matchup_ids.get(current_week, [])
+        if not matchup_scoring_periods:
+            # Fallback: use current scoring period through final
+            current_scoring_period = league.current_week
+            matchup_scoring_periods = [str(sp) for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
         
-        # For each remaining day (today through Sunday)
-        current_date = today
-        while current_date <= sunday:
+        # Convert to integers and find remaining scoring periods (from current through end of matchup)
+        scoring_periods = [int(sp) for sp in matchup_scoring_periods if sp.isdigit()]
+        current_scoring_period = league.current_week
+        remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
+        
+        # For each remaining scoring period, check which players have games
+        for scoring_period in remaining_periods:
+            scoring_period_str = str(scoring_period)
+            
             # Check each player in lineup
             for player in lineup:
                 # Check injury status - only include healthy or DTD players
                 injury_status = getattr(player, 'injuryStatus', None) or ''
-                if injury_status.upper() == 'OUT':
+                if injury_status and injury_status.upper() == 'OUT':
                     continue
                 
-                # Check if player has a game on this date
-                pro_team_id = getattr(player, 'proTeamId', None)
+                # Get player's pro team ID
+                # BoxPlayer extends Player which has proTeam (name), we need to reverse lookup the ID
+                pro_team_id = None
+                try:
+                    pro_team_name = getattr(player, 'proTeam', None)
+                    if pro_team_name:
+                        # Reverse lookup: find pro_team_id by name
+                        from espn_api.basketball.constant import PRO_TEAM_MAP
+                        # PRO_TEAM_MAP maps ID -> name, we need reverse
+                        reverse_map = {v: k for k, v in PRO_TEAM_MAP.items()}
+                        pro_team_id = reverse_map.get(pro_team_name)
+                except Exception as e:
+                    print(f"Error getting pro team ID for player {getattr(player, 'name', 'unknown')}: {e}")
+                    continue
+                
                 if not pro_team_id:
-                    # Try to get from proTeam attribute
-                    pro_team = getattr(player, 'proTeam', None)
-                    if pro_team:
-                        # Map pro team name to ID (simplified - may need full mapping)
-                        continue
-                
-                # Check player's schedule for this week
-                player_schedule = getattr(player, 'schedule', {})
-                has_game_today = False
-                
-                # Check if player has a game on current_date
-                for period_id, game_info in player_schedule.items():
-                    if isinstance(game_info, dict) and 'date' in game_info:
-                        game_date = game_info['date']
-                        if isinstance(game_date, datetime):
-                            game_date = game_date.date()
-                        elif isinstance(game_date, str):
-                            try:
-                                game_date = datetime.fromisoformat(game_date.replace('Z', '+00:00')).date()
-                            except:
-                                continue
-                        
-                        if game_date == current_date:
-                            has_game_today = True
-                            break
-                
-                if not has_game_today:
                     continue
                 
-                # Get player's season averages
+                # Check if this pro team has a game in this scoring period
+                if pro_team_id not in pro_schedule:
+                    continue
+                
+                team_games = pro_schedule[pro_team_id]
+                if scoring_period_str not in team_games:
+                    continue
+                
+                # Player has a game in this scoring period - add their season averages
                 player_stats = getattr(player, 'stats', {})
                 season_total_key = f'{league.year}_total'
                 
@@ -835,11 +832,8 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         fg_attempted += float(avg_stats.get('FGA', 0))
                         ft_made += float(avg_stats.get('FTM', 0))
                         ft_attempted += float(avg_stats.get('FTA', 0))
-            
-            # Move to next day
-            current_date += timedelta(days=1)
         
-        # Recalculate percentages
+        # Recalculate percentages based on new totals
         if fg_attempted > 0:
             projected['FG%'] = fg_made / fg_attempted
         if ft_attempted > 0:
