@@ -706,22 +706,12 @@ def get_predictions():
             total_diff = sum(abs(cat['team1_projected'] - cat['team2_projected']) for cat in categories)
             confidence = min(95, max(50, int(50 + (total_diff / 100) * 45)))
             
-            # Remove debug info from projected before adding to response
-            home_debug = home_projected.pop('_debug', {})
-            away_debug = away_projected.pop('_debug', {})
-            
             predictions.append({
                 'team1': home_name,
                 'team2': away_name,
                 'categories': categories,
                 'projected_score': projected_score,
-                'confidence': confidence,
-                'debug': {
-                    'home': home_debug,
-                    'away': away_debug,
-                    'home_final': {k: v for k, v in home_projected.items() if k in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']},
-                    'away_final': {k: v for k, v in away_projected.items() if k in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']}
-                }
+                'confidence': confidence
             })
         
         return jsonify({'predictions': predictions})
@@ -807,9 +797,6 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                     remaining_periods = list(range(current_scoring_period, matchup_end + 1))
         
         # For each remaining scoring period, check which players have games
-        games_found = 0
-        projection_additions = {}  # Track what we're adding for debug
-        
         for scoring_period in remaining_periods:
             scoring_period_str = str(scoring_period)
             
@@ -846,7 +833,6 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 if scoring_period_str not in team_games:
                     continue
                 
-                games_found += 1
                 player_name = getattr(player, 'name', 'unknown')
                 
                 # Player has a game in this scoring period - add their season averages
@@ -914,12 +900,6 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projected['3PM'] += threepm_add
                         projected['TO'] += to_add
                         
-                        player_additions = {
-                            'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
-                            'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
-                        }
-                        projection_additions[player_name] = player_additions
-                        
                         # Track FG and FT for percentages - need to get from stats dict
                         # Use the same source we got avg_stats from
                         fg_ft_stats = {}
@@ -953,9 +933,7 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                             ft_made += float(ftm_val)
                             ft_attempted += float(fta_val)
                 except Exception as e:
-                    print(f"Error getting averages for player {player_name}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    # Silently continue if we can't get stats for a player
                     continue
         
         # Recalculate percentages based on new totals
@@ -964,29 +942,10 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         if ft_attempted > 0:
             projected['FT%'] = ft_made / ft_attempted
         
-        # Store debug info - include sample of what was added
-        sample_additions = {}
-        for player_name, additions in list(projection_additions.items())[:5]:  # First 5 players
-            sample_additions[player_name] = additions
-        
-        projected['_debug'] = {
-            'games_found': games_found,
-            'remaining_periods': remaining_periods,
-            'projection_additions_count': len(projection_additions),
-            'sample_additions': sample_additions,  # Show first few for debugging
-            'current_scoring_period': current_scoring_period,
-            'matchup_scoring_periods': matchup_scoring_periods,
-            'all_scoring_periods': scoring_periods,
-            'current_matchup_period': current_week,
-            'final_scoring_period': league.finalScoringPeriod,
-            'current_stats_sample': {k: v for k, v in list(projected.items())[:5] if k in ['PTS', 'REB', 'AST']}  # Sample of final projected values
-        }
         
     except Exception as e:
-        print(f"Error projecting stats: {e}")
-        import traceback
-        traceback.print_exc()
-        projected['_debug'] = {'error': str(e)}
+        # Return projected with current stats if projection fails
+        pass
     
     return projected
 

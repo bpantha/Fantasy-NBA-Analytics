@@ -17,26 +17,6 @@ interface Prediction {
   }[]
   projected_score: string
   confidence: number
-  debug?: {
-    home?: {
-      games_found?: number
-      remaining_periods?: number[]
-      projection_additions?: Record<string, Record<string, number>>
-      current_scoring_period?: number
-      matchup_scoring_periods?: string[]
-      error?: string
-    }
-    away?: {
-      games_found?: number
-      remaining_periods?: number[]
-      projection_additions?: Record<string, Record<string, number>>
-      current_scoring_period?: number
-      matchup_scoring_periods?: string[]
-      error?: string
-    }
-    home_final?: Record<string, number>
-    away_final?: Record<string, number>
-  }
 }
 
 interface LivePredictionsProps {
@@ -169,22 +149,6 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                 )}
                 <p className="text-sm text-purple-200 mt-2">Confidence: {selectedPrediction.confidence}%</p>
                 <p className="text-xs text-purple-200/80 mt-1">Projections based on current stats + remaining games through Sunday</p>
-                
-                {/* Debug Info */}
-                {selectedPrediction.debug && (
-                  <div className="mt-4 p-3 bg-purple-900/50 rounded text-left text-xs">
-                    <p className="font-bold mb-1">Debug Info:</p>
-                    <p>Home games found: {selectedPrediction.debug.home?.games_found || 0}</p>
-                    <p>Away games found: {selectedPrediction.debug.away?.games_found || 0}</p>
-                    <p>Remaining periods: {selectedPrediction.debug.home?.remaining_periods?.join(', ') || 'None'}</p>
-                    {selectedPrediction.debug.home?.projection_additions && Object.keys(selectedPrediction.debug.home.projection_additions).length > 0 && (
-                      <p className="mt-2">Home additions: {Object.keys(selectedPrediction.debug.home.projection_additions).length} players</p>
-                    )}
-                    {selectedPrediction.debug.away?.projection_additions && Object.keys(selectedPrediction.debug.away.projection_additions).length > 0 && (
-                      <p>Away additions: {Object.keys(selectedPrediction.debug.away.projection_additions).length} players</p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Detailed Category Breakdown */}
