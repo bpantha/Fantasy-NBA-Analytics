@@ -622,6 +622,145 @@ def get_league_stats():
     
     return jsonify(results)
 
+@app.route('/api/predictions', methods=['GET'])
+def get_predictions():
+    """Get live matchup predictions for current week"""
+    try:
+        league = get_league_instance()
+        if not league:
+            return jsonify({'error': 'League API unavailable'}), 503
+        
+        current_week = get_current_week()
+        
+        # Get box scores for current week
+        box_scores = league.box_scores(matchup_period=current_week)
+        if not box_scores:
+            return jsonify({'predictions': []})
+        
+        standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+        predictions = []
+        
+        for box_score in box_scores:
+            home_team = box_score.home_team
+            away_team = box_score.away_team
+            
+            if isinstance(home_team, int):
+                home_team = league.get_team_data(home_team)
+            if isinstance(away_team, int):
+                away_team = league.get_team_data(away_team)
+            
+            home_name = home_team.team_name if hasattr(home_team, 'team_name') else str(home_team)
+            away_name = away_team.team_name if hasattr(away_team, 'team_name') else str(away_team)
+            
+            # Get lineups and project stats
+            home_projected = project_team_stats(box_score, home_team, away_team, True, league, current_week)
+            away_projected = project_team_stats(box_score, away_team, home_team, False, league, current_week)
+            
+            # Compare categories
+            categories = []
+            home_wins = 0
+            away_wins = 0
+            
+            for cat in standard_cats:
+                home_val = home_projected.get(cat, 0)
+                away_val = away_projected.get(cat, 0)
+                
+                if cat == 'TO':
+                    # Lower is better for TO
+                    if home_val < away_val:
+                        winner = home_name
+                        home_wins += 1
+                    elif away_val < home_val:
+                        winner = away_name
+                        away_wins += 1
+                    else:
+                        winner = 'Tie'
+                else:
+                    # Higher is better
+                    if home_val > away_val:
+                        winner = home_name
+                        home_wins += 1
+                    elif away_val > home_val:
+                        winner = away_name
+                        away_wins += 1
+                    else:
+                        winner = 'Tie'
+                
+                categories.append({
+                    'category': cat,
+                    'team1_value': home_val,
+                    'team2_value': away_val,
+                    'winner': winner,
+                    'team1_projected': home_val,
+                    'team2_projected': away_val
+                })
+            
+            # Calculate projected score
+            projected_score = f"{home_wins}-{away_wins}-{9 - home_wins - away_wins}"
+            
+            # Simple confidence based on margin
+            total_diff = sum(abs(cat['team1_projected'] - cat['team2_projected']) for cat in categories)
+            confidence = min(95, max(50, int(50 + (total_diff / 100) * 45)))
+            
+            predictions.append({
+                'team1': home_name,
+                'team2': away_name,
+                'categories': categories,
+                'projected_score': projected_score,
+                'confidence': confidence
+            })
+        
+        return jsonify({'predictions': predictions})
+    
+    except Exception as e:
+        print(f"Error generating predictions: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+def project_team_stats(box_score, team, opponent, is_home, league, current_week):
+    """Project team stats based on current lineup, injuries, and remaining games"""
+    standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+    projected = {cat: 0.0 for cat in standard_cats}
+    
+    try:
+        lineup = box_score.home_lineup if is_home else box_score.away_lineup
+        
+        if not lineup:
+            return projected
+        
+        # Get current stats from box score
+        stats = box_score.home_stats if is_home else box_score.away_stats
+        
+        if stats:
+            for cat in standard_cats:
+                if cat in stats:
+                    value = stats[cat].get('value', 0)
+                    projected[cat] = float(value) if value else 0.0
+        
+        # Adjust for injuries and remaining games
+        # Count active players (not OUT)
+        active_players = 0
+        for player in lineup:
+            injury_status = getattr(player, 'injuryStatus', None) or ''
+            if injury_status.upper() != 'OUT':
+                active_players += 1
+        
+        # Simple projection: scale based on active players and remaining games
+        # This is a simplified version - can be enhanced with actual game schedules
+        days_remaining = 7 - (datetime.now().weekday() % 7)  # Rough estimate
+        games_remaining_factor = max(0.5, min(1.5, days_remaining / 7))
+        
+        # Adjust projections (this is simplified - real implementation would use actual schedules)
+        for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']:
+            if projected[cat] > 0:
+                projected[cat] *= games_remaining_factor
+        
+    except Exception as e:
+        print(f"Error projecting stats: {e}")
+    
+    return projected
+
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot():
     """Handle chatbot queries using Hugging Face LLM"""
