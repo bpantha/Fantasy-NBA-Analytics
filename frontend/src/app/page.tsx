@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import TeamComparison from './components/TeamComparison'
-import LeagueRankings from './components/LeagueRankings'
-import Chatbot from './components/Chatbot'
+import TeamComparison from '../components/TeamComparison'
+import LeagueRankings from '../components/LeagueRankings'
+import Chatbot from '../components/Chatbot'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
