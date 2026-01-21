@@ -14,7 +14,10 @@ build
 dist
 env
 coverage*
-data/
+# Allow data/analytics/ directory but ignore other data files
+data/*
+!data/analytics/
+!data/analytics/**/*.json
 node_modules/
 .next/
 out/
