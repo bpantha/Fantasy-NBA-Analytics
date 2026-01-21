@@ -636,8 +636,8 @@ def get_predictions():
         
         current_week = get_current_week()
         
-        # Get box scores for current week
-        box_scores = league.box_scores(matchup_period=current_week)
+        # Get box scores for current week - use matchup_total=True to get cumulative stats for the entire matchup period
+        box_scores = league.box_scores(matchup_period=current_week, matchup_total=True)
         if not box_scores:
             return jsonify({'predictions': []})
         
@@ -706,12 +706,22 @@ def get_predictions():
             total_diff = sum(abs(cat['team1_projected'] - cat['team2_projected']) for cat in categories)
             confidence = min(95, max(50, int(50 + (total_diff / 100) * 45)))
             
+            # Remove debug info from projected before adding to response
+            home_debug = home_projected.pop('_debug', {})
+            away_debug = away_projected.pop('_debug', {})
+            
             predictions.append({
                 'team1': home_name,
                 'team2': away_name,
                 'categories': categories,
                 'projected_score': projected_score,
-                'confidence': confidence
+                'confidence': confidence,
+                'debug': {
+                    'home': home_debug,
+                    'away': away_debug,
+                    'home_final': {k: v for k, v in home_projected.items() if k in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']},
+                    'away_final': {k: v for k, v in away_projected.items() if k in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']}
+                }
             })
         
         return jsonify({'predictions': predictions})
@@ -782,13 +792,10 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
-        print(f"DEBUG: Current week: {current_week}, Current scoring period: {current_scoring_period}")
-        print(f"DEBUG: Matchup scoring periods (raw): {matchup_scoring_periods}")
-        print(f"DEBUG: Scoring periods (int): {scoring_periods}, Remaining: {remaining_periods}")
-        print(f"DEBUG: Pro schedule keys (sample): {list(pro_schedule.keys())[:5] if pro_schedule else 'None'}")
-        
         # For each remaining scoring period, check which players have games
         games_found = 0
+        projection_additions = {}  # Track what we're adding for debug
+        
         for scoring_period in remaining_periods:
             scoring_period_str = str(scoring_period)
             
@@ -826,11 +833,12 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                     continue
                 
                 games_found += 1
-                print(f"DEBUG: Found game for {getattr(player, 'name', 'unknown')} ({pro_team_name}) in scoring period {scoring_period_str}")
+                player_name = getattr(player, 'name', 'unknown')
                 
                 # Player has a game in this scoring period - add their season averages
                 try:
                     # Use nine_cat_averages property which is more reliable
+                    avg_stats = {}
                     if hasattr(player, 'nine_cat_averages'):
                         avg_stats = player.nine_cat_averages
                     else:
@@ -839,18 +847,33 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         season_total_key = f'{league.year}_total'
                         if season_total_key in player_stats:
                             avg_stats = player_stats[season_total_key].get('avg', {})
-                        else:
-                            avg_stats = {}
                     
                     if avg_stats:
+                        # Track what we're adding for this player
+                        player_additions = {}
+                        
                         # Add projected stats for this game
-                        projected['PTS'] += float(avg_stats.get('PTS', 0))
-                        projected['REB'] += float(avg_stats.get('REB', 0))
-                        projected['AST'] += float(avg_stats.get('AST', 0))
-                        projected['STL'] += float(avg_stats.get('STL', 0))
-                        projected['BLK'] += float(avg_stats.get('BLK', 0))
-                        projected['3PM'] += float(avg_stats.get('3PM', 0))
-                        projected['TO'] += float(avg_stats.get('TO', 0))
+                        pts_add = float(avg_stats.get('PTS', 0))
+                        reb_add = float(avg_stats.get('REB', 0))
+                        ast_add = float(avg_stats.get('AST', 0))
+                        stl_add = float(avg_stats.get('STL', 0))
+                        blk_add = float(avg_stats.get('BLK', 0))
+                        threepm_add = float(avg_stats.get('3PM', 0))
+                        to_add = float(avg_stats.get('TO', 0))
+                        
+                        projected['PTS'] += pts_add
+                        projected['REB'] += reb_add
+                        projected['AST'] += ast_add
+                        projected['STL'] += stl_add
+                        projected['BLK'] += blk_add
+                        projected['3PM'] += threepm_add
+                        projected['TO'] += to_add
+                        
+                        player_additions = {
+                            'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
+                            'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
+                        }
+                        projection_additions[player_name] = player_additions
                         
                         # Track FG and FT for percentages - need to get from stats dict
                         player_stats = getattr(player, 'stats', {})
@@ -862,7 +885,9 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                             ft_made += float(avg_stats_full.get('FTM', 0))
                             ft_attempted += float(avg_stats_full.get('FTA', 0))
                 except Exception as e:
-                    print(f"Error getting averages for player {getattr(player, 'name', 'unknown')}: {e}")
+                    print(f"Error getting averages for player {player_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
         
         # Recalculate percentages based on new totals
@@ -871,12 +896,20 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         if ft_attempted > 0:
             projected['FT%'] = ft_made / ft_attempted
         
-        print(f"DEBUG: Games found: {games_found}, Final projections: {projected}")
+        # Store debug info
+        projected['_debug'] = {
+            'games_found': games_found,
+            'remaining_periods': remaining_periods,
+            'projection_additions': projection_additions,
+            'current_scoring_period': current_scoring_period,
+            'matchup_scoring_periods': matchup_scoring_periods
+        }
         
     except Exception as e:
         print(f"Error projecting stats: {e}")
         import traceback
         traceback.print_exc()
+        projected['_debug'] = {'error': str(e)}
     
     return projected
 
