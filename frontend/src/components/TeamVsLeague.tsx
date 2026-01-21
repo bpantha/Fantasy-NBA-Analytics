@@ -409,7 +409,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             <h3 className="text-lg md:text-xl font-bold mb-4">📊 Performance vs All Teams</h3>
             <div className="space-y-4">
               {Object.entries(selectedTeamData.matchup_details).map(([opponent, details]) => {
-                // Get opponent's team data for this week to show their minutes
+                // Get opponent's team data for this week to show THEIR minutes (not selected team's)
                 const opponentTeamData = weekData?.teams.find(t => t.name === opponent)
                 const opponentMinutes = opponentTeamData?.minutes_played || 0
                 const weekAvg = weekData?.league_avg_minutes || 0
@@ -430,16 +430,14 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       </span>
                     </div>
                     
-                    {/* Show selected team's minutes for this week (same for all opponents) */}
-                    {selectedWeek && weekData && selectedTeamData && (() => {
-                      const teamMinutes = selectedTeamData.minutes_played || 0
-                      const vsAvg = teamMinutes - weekAvg
+                    {/* Show opponent's minutes for this week */}
+                    {selectedWeek && weekData && opponentTeamData && (() => {
                       return (
                         <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-2 md:p-3 rounded-lg mb-2">
-                          <h5 className="text-xs font-semibold text-orange-200 mb-1">⏱️ {selectedTeam}'s Minutes Played</h5>
-                          <p className="text-xl md:text-2xl font-bold">{teamMinutes.toFixed(0)}</p>
+                          <h5 className="text-xs font-semibold text-orange-200 mb-1">⏱️ {opponent}'s Minutes Played</h5>
+                          <p className="text-xl md:text-2xl font-bold">{opponentMinutes.toFixed(0)}</p>
                           <p className="text-xs text-orange-200 mt-1">
-                            {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)} vs Week {selectedWeek} League Avg Minutes
+                            {opponentVsAvg > 0 ? '+' : ''}{opponentVsAvg.toFixed(1)} vs Week {selectedWeek} League Avg Minutes
                           </p>
                         </div>
                       )
