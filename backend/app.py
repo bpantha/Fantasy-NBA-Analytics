@@ -171,14 +171,13 @@ def query_huggingface_llm(query, context_data):
     """Query Hugging Face LLM with context"""
     import requests
     
-    # Use a free Hugging Face model - using a more reliable one
-    # Try multiple models as fallback
+    # Use a free Hugging Face model - try multiple models as fallback
+    # Using smaller, more reliable models for free tier
     API_URLS = [
-        "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+        "https://api-inference.huggingface.co/models/google/flan-t5-base",
         "https://api-inference.huggingface.co/models/gpt2",
-        "https://api-inference.huggingface.co/models/google/flan-t5-base"
+        "https://api-inference.huggingface.co/models/microsoft/DialoGPT-small"
     ]
-    API_URL = API_URLS[0]  # Start with first one
     headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY', '')}"}
     
     # Format context as text
@@ -208,14 +207,30 @@ Provide a clear, concise answer based only on the data provided above. If the da
             response = requests.post(api_url, headers=headers, json=payload, timeout=30)
             if response.status_code == 200:
                 result = response.json()
+                # Handle different response formats
                 if isinstance(result, list) and len(result) > 0:
-                    return result[0].get('generated_text', 'Unable to generate response')
-                return str(result)
-        except Exception as e:
+                    text = result[0].get('generated_text', '')
+                    if text:
+                        return text
+                elif isinstance(result, dict):
+                    text = result.get('generated_text', '') or result.get('text', '')
+                    if text:
+                        return text
+                elif isinstance(result, str):
+                    return result
+        except requests.exceptions.RequestException as e:
             continue  # Try next URL
+        except Exception as e:
+            continue
     
-    # If all fail, return a helpful message
-    return "Sorry, the AI is having issues right now. Try asking about specific teams or players from your league data!"
+    # If all fail, provide a helpful response based on the query
+    query_lower = query.lower()
+    if 'team' in query_lower or 'beat' in query_lower or 'win' in query_lower:
+        return "Check out the leaderboard above to see which teams are dominating! 💪"
+    elif 'player' in query_lower:
+        return "Player stats are coming soon! For now, check out the team performance metrics."
+    else:
+        return "I'm having trouble with that question right now. Try asking about teams, wins, or matchups! 🏀"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
