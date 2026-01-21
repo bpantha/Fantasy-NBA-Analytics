@@ -17,6 +17,26 @@ interface Prediction {
   }[]
   projected_score: string
   confidence: number
+  debug?: {
+    home?: {
+      games_found?: number
+      remaining_periods?: number[]
+      projection_additions?: Record<string, Record<string, number>>
+      current_scoring_period?: number
+      matchup_scoring_periods?: string[]
+      error?: string
+    }
+    away?: {
+      games_found?: number
+      remaining_periods?: number[]
+      projection_additions?: Record<string, Record<string, number>>
+      current_scoring_period?: number
+      matchup_scoring_periods?: string[]
+      error?: string
+    }
+    home_final?: Record<string, number>
+    away_final?: Record<string, number>
+  }
 }
 
 interface LivePredictionsProps {
