@@ -349,24 +349,26 @@ def main():
     with open(DATA_DIR / 'players.json', 'w') as f:
         json.dump(players, f, indent=2, default=json_serial)
     
-    # Export current week and last week
+    # Export all historical weeks
     current_period = league.currentMatchupPeriod
-    last_period = current_period - 1
     
-    if last_period >= 1:
-        print(f"Exporting week {last_period}...")
-        week_data = export_week_analytics(league, last_period)
-        if week_data:
-            with open(DATA_DIR / f'week{last_period}.json', 'w') as f:
-                json.dump(week_data, f, indent=2, default=json_serial)
+    print(f"Exporting all weeks (1 through {current_period})...")
+    exported_count = 0
+    for week in range(1, current_period + 1):
+        try:
+            print(f"Exporting week {week}...")
+            week_data = export_week_analytics(league, week)
+            if week_data:
+                with open(DATA_DIR / f'week{week}.json', 'w') as f:
+                    json.dump(week_data, f, indent=2, default=json_serial)
+                exported_count += 1
+            else:
+                print(f"  No data for week {week}, skipping...")
+        except Exception as e:
+            print(f"  Error exporting week {week}: {e}")
+            continue
     
-    print(f"Exporting week {current_period}...")
-    week_data = export_week_analytics(league, current_period)
-    if week_data:
-        with open(DATA_DIR / f'week{current_period}.json', 'w') as f:
-            json.dump(week_data, f, indent=2, default=json_serial)
-    
-    print("Export complete!")
+    print(f"Export complete! Exported {exported_count} weeks.")
 
 if __name__ == '__main__':
     main()
