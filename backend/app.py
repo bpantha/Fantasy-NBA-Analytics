@@ -851,35 +851,45 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 
                 # Player has a game in this scoring period - add their season averages
                 try:
-                    # Use nine_cat_averages property which is more reliable
                     avg_stats = {}
+                    player_id = getattr(player, 'playerId', None)
+                    
+                    # First, try to get stats from BoxPlayer itself
                     if hasattr(player, 'nine_cat_averages'):
                         try:
                             avg_stats = player.nine_cat_averages
                         except:
-                            avg_stats = {}
+                            pass
                     
-                    # If nine_cat_averages is empty or doesn't exist, try stats dict
+                    # If that didn't work, try stats dict from BoxPlayer
                     if not avg_stats:
                         player_stats = getattr(player, 'stats', {})
                         season_total_key = f'{league.year}_total'
                         if season_total_key in player_stats:
                             avg_stats = player_stats[season_total_key].get('avg', {})
                     
-                    # If avg_stats is empty, BoxPlayer might not have full stats loaded
-                    # Try to get from player's stats dict directly (BoxPlayer extends Player)
-                    if not avg_stats:
-                        # Check if stats dict exists but avg is not populated
-                        player_stats = getattr(player, 'stats', {})
-                        if player_stats:
-                            # Try different possible keys
-                            for key in [f'{league.year}_total', f'{league.year - 1}_total', '2026_total']:
-                                if key in player_stats:
-                                    season_data = player_stats[key]
-                                    if isinstance(season_data, dict):
-                                        avg_stats = season_data.get('avg', {})
-                                        if avg_stats:
+                    # If still empty, try to get full player from league teams' rosters
+                    # BoxPlayer might not have full season stats, so fetch from team roster
+                    if not avg_stats and player_id:
+                        for team in league.teams:
+                            for roster_player in team.roster:
+                                if getattr(roster_player, 'playerId', None) == player_id:
+                                    # Found the full player - get their season averages
+                                    if hasattr(roster_player, 'nine_cat_averages'):
+                                        try:
+                                            avg_stats = roster_player.nine_cat_averages
                                             break
+                                        except:
+                                            pass
+                                    if not avg_stats:
+                                        roster_player_stats = getattr(roster_player, 'stats', {})
+                                        season_total_key = f'{league.year}_total'
+                                        if season_total_key in roster_player_stats:
+                                            avg_stats = roster_player_stats[season_total_key].get('avg', {})
+                                            if avg_stats:
+                                                break
+                            if avg_stats:
+                                break
                     
                     if avg_stats:
                         # Track what we're adding for this player
@@ -911,14 +921,33 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projection_additions[player_name] = player_additions
                         
                         # Track FG and FT for percentages - need to get from stats dict
-                        player_stats = getattr(player, 'stats', {})
-                        season_total_key = f'{league.year}_total'
-                        if season_total_key in player_stats:
-                            avg_stats_full = player_stats[season_total_key].get('avg', {})
-                            fgm_val = avg_stats_full.get('FGM', 0) or 0
-                            fga_val = avg_stats_full.get('FGA', 0) or 0
-                            ftm_val = avg_stats_full.get('FTM', 0) or 0
-                            fta_val = avg_stats_full.get('FTA', 0) or 0
+                        # Use the same source we got avg_stats from
+                        fg_ft_stats = {}
+                        if player_id:
+                            # Try to get from full player if we found one
+                            for team in league.teams:
+                                for roster_player in team.roster:
+                                    if getattr(roster_player, 'playerId', None) == player_id:
+                                        roster_player_stats = getattr(roster_player, 'stats', {})
+                                        season_total_key = f'{league.year}_total'
+                                        if season_total_key in roster_player_stats:
+                                            fg_ft_stats = roster_player_stats[season_total_key].get('avg', {})
+                                            break
+                                if fg_ft_stats:
+                                    break
+                        
+                        # Fallback to BoxPlayer stats if we didn't find full player
+                        if not fg_ft_stats:
+                            player_stats = getattr(player, 'stats', {})
+                            season_total_key = f'{league.year}_total'
+                            if season_total_key in player_stats:
+                                fg_ft_stats = player_stats[season_total_key].get('avg', {})
+                        
+                        if fg_ft_stats:
+                            fgm_val = fg_ft_stats.get('FGM', 0) or 0
+                            fga_val = fg_ft_stats.get('FGA', 0) or 0
+                            ftm_val = fg_ft_stats.get('FTM', 0) or 0
+                            fta_val = fg_ft_stats.get('FTA', 0) or 0
                             fg_made += float(fgm_val)
                             fg_attempted += float(fga_val)
                             ft_made += float(ftm_val)
