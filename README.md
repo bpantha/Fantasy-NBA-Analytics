@@ -3,10 +3,8 @@
 
 
 ## ESPN API
-This package uses ESPN's Fantasy API to extract data from any public or private league for **Fantasy Football and Basketball (NHL, MLB, and WNBA are in development)**.  
+This package uses ESPN's Fantasy API to extract data from any public or private league for **Fantasy Basketball**.  
 Please feel free to make suggestions, bug reports, and pull request for features or fixes!
-
-This package was inspired and based off of [rbarton65/espnff](https://github.com/rbarton65/espnff).
 
 ## Installing
 ### Note
@@ -51,14 +49,9 @@ pytest
 ## Usage
 ### [For Getting Started and API details head over to the Wiki!](https://github.com/cwendt94/espn-api/wiki)
 ```python
-# Football API
-from espn_api.football import League
 # Basketball API
 from espn_api.basketball import League
-# Hockey API
-from espn_api.hockey import League
-# Baseball API
-from espn_api.baseball import League
+
 # Init
 league = League(league_id=222, year=2019)
 ```
@@ -71,7 +64,7 @@ If you have any questions about the package, ESPN API data, or want to talk abou
 ## Issue Reporting
 If you find a bug follow the steps below for reporting.
 
-1. Open a [new issue](https://github.com/cwendt94/espn-api/issues) with a brief description of the bug for the title. In the title also add which sport (Football or Basketball)
+1. Open a [new issue](https://github.com/cwendt94/espn-api/issues) with a brief description of the bug for the title.
 
 2. Run the application in debug mode to view ESPN API request's and response's
     ```python
