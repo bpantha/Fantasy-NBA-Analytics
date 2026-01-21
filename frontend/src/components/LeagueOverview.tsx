@@ -286,8 +286,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               >
                 {stats.activity_metrics.most_active.name}
               </button>
-              <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.most_active.total_minutes.toFixed(0)} min</p>
-              <p className="text-xs text-gray-400 mt-1">Sum of minutes across all weeks</p>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.most_active.avg_minutes_per_week?.toFixed(1) || stats.activity_metrics.most_active.total_minutes.toFixed(0)}</p>
+              <p className="text-xs text-gray-400 mt-1">{stats.activity_metrics.most_active.avg_minutes_per_week ? 'Average minutes per week' : 'Total minutes'}</p>
             </div>
           )}
           
@@ -361,7 +361,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
+                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
                 </div>
               ))}
             </div>
@@ -379,7 +379,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
+                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
                 </div>
               ))}
             </div>
@@ -449,10 +449,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">Best Single Week</h3>
               <button
-                onClick={() => setSelectedWeek(stats.weekly_performance.best_single_week.week)}
+                onClick={() => setSelectedTeam(stats.weekly_performance.best_single_week.name)}
                 className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
-                Week {stats.weekly_performance.best_single_week.week}
+                {stats.weekly_performance.best_single_week.name}
               </button>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.weekly_performance.best_single_week.team}</p>
               <p className="text-xs md:text-sm text-gray-400 mt-1">{stats.weekly_performance.best_single_week.teams_beaten} teams beaten</p>

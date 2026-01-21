@@ -101,9 +101,11 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           const opponent = team.opponent_name
           if (!minutesMap[opponent] || parseInt(weekNum) > minutesMap[opponent].week) {
             // Use the most recent week if team played opponent multiple times
+            // Calculate vs that week's average
+            const weekAvg = weekData.league_avg_minutes || 0
             minutesMap[opponent] = {
               minutes: team.minutes_played || 0,
-              vsAvg: team.minutes_vs_league_avg || 0,
+              vsAvg: (team.minutes_played || 0) - weekAvg,
               week: parseInt(weekNum)
             }
           }
@@ -309,7 +311,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
                       <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
                       <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
+                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)} vs Week {selectedWeek} Avg
                       </td>
                     </tr>
                   )
@@ -348,10 +350,10 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
               <p className="text-2xl md:text-3xl font-bold">{selectedTeamData.minutes_played.toFixed(0)}</p>
               <p className="text-xs md:text-sm text-orange-200 mt-1">
                 {selectedTeamData.minutes_vs_league_avg > 0 ? '+' : ''}
-                {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs avg
+                {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs Week {selectedWeek} Avg
               </p>
               {weekData && (
-                <p className="text-xs text-orange-200/80 mt-1">League Avg: {weekData.league_avg_minutes.toFixed(1)}</p>
+                <p className="text-xs text-orange-200/80 mt-1">Week {selectedWeek} League Avg: {weekData.league_avg_minutes.toFixed(1)} min</p>
               )}
             </div>
             
@@ -420,7 +422,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                         <h5 className="text-xs md:text-sm font-semibold text-orange-200 mb-1">Minutes Played</h5>
                         <p className="text-2xl md:text-3xl font-bold">{oppMinutes.minutes.toFixed(0)}</p>
                         <p className="text-xs md:text-sm text-orange-200 mt-1">
-                          {oppMinutes.vsAvg > 0 ? '+' : ''}{oppMinutes.vsAvg.toFixed(1)} vs avg
+                          {oppMinutes.vsAvg > 0 ? '+' : ''}{oppMinutes.vsAvg.toFixed(1)} vs Week {oppMinutes.week} Avg
                         </p>
                       </div>
                     )}

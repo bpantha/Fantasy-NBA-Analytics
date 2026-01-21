@@ -155,6 +155,7 @@ def get_league_stats():
         'weeks_played': 0,
         'weekly_teams_beaten': [],
         'category_wins': defaultdict(int),
+        'category_wins_by_week': defaultdict(lambda: defaultdict(int)),  # category -> week -> count
         'category_wins_list': defaultdict(list),  # For std dev calculation
         'matchup_history': defaultdict(lambda: {'wins': 0, 'losses': 0, 'total': 0}),
         'best_week': {'week': 0, 'teams_beaten': 0},
@@ -224,6 +225,7 @@ def get_league_stats():
             for opponent, details in team.get('matchup_details', {}).items():
                 for cat in details.get('won_cats', []):
                     stats['category_wins'][cat] += 1
+                    stats['category_wins_by_week'][cat][week_num] = stats['category_wins_by_week'][cat].get(week_num, 0) + 1
                     stats['category_wins_list'][cat].append(1)
                 # Also track losses for std dev
                 for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']:
@@ -345,9 +347,15 @@ def get_league_stats():
         'most_balanced': min(balanced_scores.items(), key=lambda x: x[1])[0] if balanced_scores else None
     }
     
-    # Activity Metrics
+    # Activity Metrics - most active is average minutes per week
+    for team_data in teams_list:
+        team_name = team_data['name']
+        team_stat = team_stats.get(team_name, {})
+        weeks_played = team_stat.get('weeks_played', 1)
+        team_data['avg_minutes_per_week'] = team_data['total_minutes'] / weeks_played if weeks_played > 0 else 0
+    
     results['activity_metrics'] = {
-        'most_active': max(teams_list, key=lambda x: x['total_minutes']) if teams_list else None,
+        'most_active': max(teams_list, key=lambda x: x['avg_minutes_per_week']) if teams_list else None,
         'minutes_leader': max(teams_list, key=lambda x: x['total_minutes']) if teams_list else None,
         'efficiency_leader': max(teams_list, key=lambda x: x['efficiency']) if teams_list else None
     }
@@ -441,13 +449,20 @@ def get_league_stats():
         'least_consistent_weekly': sorted(weekly_variance_teams, key=lambda x: x['variance'], reverse=True)[:3]
     }
     
-    # Weekly Performance
+    # Weekly Performance - best single week shows the team, not the week
+    best_week_team = None
+    best_week_count = 0
+    for name, s in team_stats.items():
+        if s['best_week']['teams_beaten'] > best_week_count:
+            best_week_count = s['best_week']['teams_beaten']
+            best_week_team = {
+                'name': name,
+                'week': s['best_week']['week'],
+                'teams_beaten': s['best_week']['teams_beaten']
+            }
+    
     results['weekly_performance'] = {
-        'best_single_week': max(
-            [{'name': name, 'week': s['best_week']['week'], 'teams_beaten': s['best_week']['teams_beaten']} 
-             for name, s in team_stats.items()],
-            key=lambda x: x['teams_beaten']
-        ) if team_stats else None,
+        'best_single_week': best_week_team,
         'most_improved': None
     }
     
@@ -474,6 +489,12 @@ def get_league_stats():
     
     # Add teams_list to results
     results['teams_list'] = teams_list
+    
+    # Add category wins by team for comparison modal
+    category_wins_by_team = {}
+    for team_name, stats in team_stats.items():
+        category_wins_by_team[team_name] = dict(stats['category_wins'])
+    results['category_wins_by_team'] = category_wins_by_team
     
     return jsonify(results)
 

@@ -37,15 +37,15 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
 
   const categoryLeader = stats?.category_performance?.category_leaders?.[category]
   
-  // Get all teams and their category wins from teams_list
-  const teamsWithCategoryWins = stats?.teams_list ? stats.teams_list.map((team: any) => {
-    // We need to fetch category-specific wins - for now show total category wins
+  // Get all teams and their category-specific wins
+  const teamsWithCategoryWins = stats?.category_wins_by_team ? Object.entries(stats.category_wins_by_team).map(([teamName, categoryWins]: [string, any]) => {
+    const teamData = stats?.teams_list?.find((t: any) => t.name === teamName)
     return {
-      name: team.name,
-      logo_url: team.logo_url,
-      total_category_wins: team.total_category_wins || 0
+      name: teamName,
+      logo_url: teamData?.logo_url || '',
+      category_wins: categoryWins[category] || 0
     }
-  }).sort((a: any, b: any) => b.total_category_wins - a.total_category_wins) : []
+  }).sort((a: any, b: any) => b.category_wins - a.category_wins) : []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -65,7 +65,7 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg mb-4">
               <h3 className="text-base md:text-lg font-semibold mb-2">Top Team</h3>
               <p className="text-lg md:text-xl font-bold text-blue-400">{categoryLeader.team}</p>
-              <p className="text-sm text-gray-400 mt-1">{categoryLeader.wins} category wins</p>
+              <p className="text-sm text-gray-400 mt-1">{categoryLeader.wins} {categoryLeader.wins === 1 ? 'win' : 'wins'}</p>
             </div>
           )}
           
@@ -77,7 +77,7 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                   <tr>
                     <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
                     <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Category Wins</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">{category} Wins</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -88,7 +88,7 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                         <div className="flex items-center gap-2">
                           {team.logo_url && (
                             <img 
-                              src={team.logo_url} 
+                              src={team.logo_url.startsWith('http') ? team.logo_url : `https://${team.logo_url}`} 
                               alt={team.name}
                               className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                               onError={(e) => {
@@ -99,7 +99,7 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                           <span className="font-medium">{team.name}</span>
                         </div>
                       </td>
-                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.total_category_wins}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.category_wins}</td>
                     </tr>
                   ))}
                 </tbody>
