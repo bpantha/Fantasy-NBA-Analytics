@@ -92,7 +92,14 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                               alt={team.name}
                               className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none'
+                                // Try fallback URL if primary fails
+                                const img = e.target as HTMLImageElement
+                                if (!img.src.includes('default')) {
+                                  // Try default ESPN fantasy logo
+                                  img.src = `https://a.espncdn.com/i/teamlogos/default-team-logo-500.png`
+                                } else {
+                                  img.style.display = 'none'
+                                }
                               }}
                             />
                           )}
