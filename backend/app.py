@@ -282,8 +282,11 @@ def get_league_stats():
     # Get current week from league summary to exclude it from streaks
     current_week = league_summary.get('current_matchup_period', len(all_weeks_data))
     
+    # Sort weeks by matchup_period to ensure correct order
+    sorted_weeks = sorted(all_weeks_data, key=lambda x: x.get('matchup_period', 0))
+    
     # Process each week
-    for week_idx, week_data in enumerate(all_weeks_data):
+    for week_idx, week_data in enumerate(sorted_weeks):
         week_num = week_data.get('matchup_period', week_idx + 1)
         is_current_week = (week_num == current_week)
         
@@ -494,13 +497,13 @@ def get_league_stats():
         'current_streak_leaders': sorted(
             [{'name': name, 'streak': s['current_streak']} for name, s in team_stats.items()],
             key=lambda x: x['streak'], reverse=True
-        )[:5],
+        ),  # Show all teams
         'longest_streak_leaders': sorted(
             [{'name': name, 'streak': s['longest_streak']} for name, s in team_stats.items()],
             key=lambda x: x['streak'], reverse=True
-        )[:5],
-        'hot_teams': sorted(hot_teams, key=lambda x: x['avg'], reverse=True)[:3],
-        'cold_teams': sorted(cold_teams, key=lambda x: x['avg'])[:3]
+        ),  # Show all teams
+        'hot_teams': sorted(hot_teams, key=lambda x: x['avg'], reverse=True),  # Show all teams
+        'cold_teams': sorted(cold_teams, key=lambda x: x['avg'])  # Show all teams
     }
     
     # Best/Worst Matchups

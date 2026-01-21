@@ -14,6 +14,7 @@ interface Team {
   opponent_name: string
   minutes_vs_league_avg: number
   league_avg_minutes: number
+  category_totals?: Record<string, number>  // PTS, REB, AST, etc.
   beaten_teams: string[]
   matchup_details: Record<string, {
     won: number
@@ -368,8 +369,15 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             
             {bestCategory && (
               <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg">
-                <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">Best Category</h3>
+                <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">⭐ Best Category</h3>
                 <p className="text-xl md:text-2xl font-bold">{bestCategory.category}</p>
+                {selectedTeamData.category_totals && selectedTeamData.category_totals[bestCategory.category] !== undefined && (
+                  <p className="text-lg md:text-xl font-bold mt-1">
+                    {bestCategory.category === 'FG%' || bestCategory.category === 'FT%' 
+                      ? `${(selectedTeamData.category_totals[bestCategory.category] * 100).toFixed(1)}%`
+                      : selectedTeamData.category_totals[bestCategory.category].toFixed(1)}
+                  </p>
+                )}
                 <p className="text-xs md:text-sm text-purple-200 mt-1">{bestCategory.wins} wins</p>
               </div>
             )}
@@ -447,11 +455,23 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       <div className="mt-2">
                         <p className="text-xs md:text-sm text-gray-400 mb-1">✅ Categories Won:</p>
                         <div className="flex flex-wrap gap-1 md:gap-2">
-                          {details.won_cats.map(cat => (
-                            <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm">
-                              {cat}
-                            </span>
-                          ))}
+                          {details.won_cats.map(cat => {
+                            const selectedValue = selectedTeamData.category_totals?.[cat]
+                            const opponentValue = opponentTeamData?.category_totals?.[cat]
+                            return (
+                              <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm" title={
+                                selectedValue !== undefined && opponentValue !== undefined
+                                  ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
+                                  : cat
+                              }>
+                                {cat} {selectedValue !== undefined && opponentValue !== undefined && (
+                                  <span className="text-green-200">
+                                    ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
+                                  </span>
+                                )}
+                              </span>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
@@ -459,11 +479,23 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       <div className="mt-2">
                         <p className="text-xs md:text-sm text-gray-400 mb-1">❌ Categories Lost:</p>
                         <div className="flex flex-wrap gap-1 md:gap-2">
-                          {details.lost_cats.map(cat => (
-                            <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm">
-                              {cat}
-                            </span>
-                          ))}
+                          {details.lost_cats.map(cat => {
+                            const selectedValue = selectedTeamData.category_totals?.[cat]
+                            const opponentValue = opponentTeamData?.category_totals?.[cat]
+                            return (
+                              <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm" title={
+                                selectedValue !== undefined && opponentValue !== undefined
+                                  ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
+                                  : cat
+                              }>
+                                {cat} {selectedValue !== undefined && opponentValue !== undefined && (
+                                  <span className="text-red-200">
+                                    ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
+                                  </span>
+                                )}
+                              </span>
+                            )
+                          })}
                         </div>
                       </div>
                     )}

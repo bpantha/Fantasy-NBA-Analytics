@@ -120,9 +120,102 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   }
 
   const categories = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+  const categoryEmojis: Record<string, string> = {
+    'PTS': '🏀',
+    'REB': '📊',
+    'AST': '🎯',
+    'STL': '👋',
+    'BLK': '🛡️',
+    'FG%': '🎨',
+    'FT%': '🎪',
+    '3PM': '💫',
+    'TO': '⚠️'
+  }
+
+  const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+
+  const handleSort = (field: 'avg_teams_beaten' | 'total_wins' | 'win_percentage') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const sortedTeams = stats.teams_list ? [...stats.teams_list].sort((a, b) => {
+    const aVal = a[sortField]
+    const bVal = b[sortField]
+    if (sortDirection === 'asc') {
+      return aVal > bVal ? 1 : -1
+    } else {
+      return aVal < bVal ? 1 : -1
+    }
+  }) : []
 
   return (
     <div className="space-y-6">
+      {/* Streaks & Trends KPI Bar */}
+      {stats.streaks_trends && (
+        <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">📈 Streaks & Trends</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div>
+              <h3 className="text-sm md:text-base font-semibold mb-2 text-green-400">🔥 Current Win Streaks</h3>
+              <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better (excluding current week)</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
+                    <span className="text-sm md:text-base font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm md:text-base font-semibold mb-2">🏆 Longest Streaks</h3>
+              <p className="text-xs text-gray-400 mb-2">All-time longest consecutive wins</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
+                    <span className="text-sm md:text-base font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm md:text-base font-semibold mb-2 text-green-400">🔥 Hot Teams</h3>
+              <p className="text-xs text-gray-400 mb-2">Best performance in last 4 weeks</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {stats.streaks_trends.hot_teams.map((team, idx) => (
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
+                    <span className="text-xs md:text-sm font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm md:text-base font-semibold mb-2 text-red-400">❄️ Cold Teams</h3>
+              <p className="text-xs text-gray-400 mb-2">Worst performance in last 4 weeks</p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {stats.streaks_trends.cold_teams.map((team, idx) => (
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
+                    <span className="text-xs md:text-sm font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* League Standings Table */}
       {stats.teams_list && stats.teams_list.length > 0 && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
@@ -132,15 +225,28 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <thead className="bg-gray-700">
                 <tr>
                   <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Avg Wins vs Opp</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Win %</th>
+                  <th 
+                    className="px-2 md:px-4 py-2 md:py-3 text-right cursor-pointer hover:bg-gray-600"
+                    onClick={() => handleSort('avg_teams_beaten')}
+                  >
+                    Avg Wins vs Opp {sortField === 'avg_teams_beaten' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    className="px-2 md:px-4 py-2 md:py-3 text-right cursor-pointer hover:bg-gray-600"
+                    onClick={() => handleSort('total_wins')}
+                  >
+                    Total Wins {sortField === 'total_wins' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    className="px-2 md:px-4 py-2 md:py-3 text-right cursor-pointer hover:bg-gray-600"
+                    onClick={() => handleSort('win_percentage')}
+                  >
+                    Win % {sortField === 'win_percentage' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {stats.teams_list
-                  .sort((a, b) => b.avg_teams_beaten - a.avg_teams_beaten)
-                  .map((team, index) => (
+                {sortedTeams.map((team, index) => (
                     <tr 
                       key={team.name} 
                       className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
@@ -203,7 +309,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             if (!leader) return null
             return (
               <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors border border-transparent hover:border-blue-500" onClick={() => setSelectedCategory(cat)}>
-                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{cat}</h3>
+                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{categoryEmojis[cat]} {cat}</h3>
                 <p className="text-sm md:text-base font-bold text-blue-400 block w-full text-center">
                   {leader.team}
                 </p>
@@ -295,74 +401,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-xs text-gray-400 mt-1">wins per 1000 min</p>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Streaks & Trends */}
-      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Streaks & Trends</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">🔥 Current Win Streaks</h3>
-            <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better</p>
-            <div className="space-y-2">
-              {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
-                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                      <span className="text-sm md:text-base text-blue-400 font-medium">
-                        {team.name}
-                      </span>
-                      <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
-                    </div>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">🏆 Longest Streaks (All-Time)</h3>
-            <p className="text-xs text-gray-400 mb-2">Longest consecutive weeks beating scheduled opponent 5-4-0 or better</p>
-            <div className="space-y-2">
-              {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
-                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                      <span className="text-sm md:text-base text-blue-400 font-medium">
-                        {team.name}
-                      </span>
-                      <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
-                    </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mt-3 md:mt-4">
-          <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-green-400">🔥 Hot Teams</h3>
-            <p className="text-xs text-gray-400 mb-2">Best performance in last 4 weeks</p>
-            <div className="space-y-2">
-              {stats.streaks_trends.hot_teams.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <span className="text-sm md:text-base text-blue-400 font-medium">
-                    {team.name}
-                  </span>
-                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-red-400">❄️ Cold Teams</h3>
-            <p className="text-xs text-gray-400 mb-2">Worst performance in last 4 weeks</p>
-            <div className="space-y-2">
-              {stats.streaks_trends.cold_teams.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <span className="text-sm md:text-base text-blue-400 font-medium">
-                    {team.name}
-                  </span>
-                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 

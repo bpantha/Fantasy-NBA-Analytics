@@ -194,6 +194,11 @@ def export_week_analytics(league, matchup_period):
             team_name = get_team_display_name(team)
             minutes = team_minutes.get(team, 0)
             
+            # Get category totals for this team
+            category_totals = {}
+            for cat in standard_cats:
+                category_totals[cat] = team_category_totals[team].get(cat, 0)
+            
             # Find opponent
             opponent_name = None
             opponent_minutes = None
@@ -234,6 +239,7 @@ def export_week_analytics(league, matchup_period):
                 'opponent_name': opponent_name,
                 'minutes_vs_league_avg': minutes - league_avg_minutes,
                 'league_avg_minutes': league_avg_minutes,
+                'category_totals': category_totals,  # Add category totals
                 'beaten_teams': [get_team_display_name(t) for t in stats['beaten_teams']],
                 'matchup_details': stats['matchup_details']
             })
