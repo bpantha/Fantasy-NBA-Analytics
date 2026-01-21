@@ -397,7 +397,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-xs text-gray-400 mb-2">Lowest variance in teams beaten per week (avg = average teams beaten per week)</p>
               <div className="space-y-2">
                 {stats.head_to_head.most_consistent_weekly
-                  .sort((a, b) => a.variance - b.variance)
+                  ?.sort((a, b) => a.variance - b.variance)
                   .map((team, idx) => (
                     <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                       <button
@@ -411,7 +411,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                         <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
                       </div>
                     </div>
-                  ))}
+                  )) || []}
               </div>
             </div>
             
@@ -420,7 +420,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-xs text-gray-400 mb-2">Highest variance in teams beaten per week (avg = average teams beaten per week)</p>
               <div className="space-y-2">
                 {stats.head_to_head.least_consistent_weekly
-                  .sort((a, b) => b.variance - a.variance)
+                  ?.sort((a, b) => b.variance - a.variance)
                   .map((team, idx) => (
                     <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                       <button
@@ -434,7 +434,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                         <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
                       </div>
                     </div>
-                  ))}
+                  )) || []}
               </div>
             </div>
           </div>
