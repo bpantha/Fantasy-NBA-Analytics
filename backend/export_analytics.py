@@ -4,26 +4,23 @@ Export analytics data to JSON files
 Runs the analytics script and saves results to JSON
 """
 
-import sys
-import json
-from pathlib import Path
-from datetime import datetime
-import os
-
-# Add parent directory to path to import league_analytics
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import os
 import sys
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date
 from collections import defaultdict
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from espn_api.basketball import League
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 # Get credentials from environment or use defaults
 LEAGUE_ID = int(os.getenv('LEAGUE_ID', '39944776'))
@@ -34,7 +31,6 @@ ESPN_SWID = os.getenv('ESPN_SWID', '')
 def get_team_display_name(team):
     """Get team name for display"""
     return team.team_name
-from collections import defaultdict
 
 DATA_DIR = Path(__file__).parent.parent / 'data' / 'analytics'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -260,6 +256,30 @@ def export_league_summary(league):
         'teams': teams_summary
     }
 
+def clean_stats(stats):
+    """Recursively clean stats dictionary to make it JSON serializable"""
+    if stats is None:
+        return {}
+    
+    cleaned = {}
+    for key, value in stats.items():
+        if isinstance(value, (datetime, date)):
+            cleaned[key] = value.isoformat()
+        elif isinstance(value, dict):
+            cleaned[key] = clean_stats(value)
+        elif isinstance(value, (list, tuple)):
+            cleaned[key] = [clean_stats(item) if isinstance(item, dict) else 
+                           (item.isoformat() if isinstance(item, (datetime, date)) else item)
+                           for item in value]
+        else:
+            # Try to keep the value as-is, but skip if it's not JSON serializable
+            try:
+                json.dumps(value)
+                cleaned[key] = value
+            except (TypeError, ValueError):
+                cleaned[key] = str(value)  # Convert to string as fallback
+    return cleaned
+
 def export_players(league):
     """Export all player data"""
     players_data = []
@@ -268,6 +288,10 @@ def export_players(league):
     for team in league.teams:
         if hasattr(team, 'roster') and team.roster:
             for player in team.roster:
+                player_stats = {}
+                if hasattr(player, 'stats') and player.stats:
+                    player_stats = clean_stats(player.stats)
+                
                 players_data.append({
                     'name': player.name,
                     'player_id': player.playerId,
@@ -275,13 +299,17 @@ def export_players(league):
                     'team': get_team_display_name(team),
                     'pro_team': player.proTeam,
                     'injury_status': player.injuryStatus,
-                    'stats': player.stats if hasattr(player, 'stats') else {}
+                    'stats': player_stats
                 })
     
     # Also get free agents
     try:
         free_agents = league.free_agents(size=100)
         for player in free_agents:
+            player_stats = {}
+            if hasattr(player, 'stats') and player.stats:
+                player_stats = clean_stats(player.stats)
+            
             players_data.append({
                 'name': player.name,
                 'player_id': player.playerId,
@@ -289,9 +317,10 @@ def export_players(league):
                 'team': 'Free Agent',
                 'pro_team': player.proTeam,
                 'injury_status': player.injuryStatus,
-                'stats': player.stats if hasattr(player, 'stats') else {}
+                'stats': player_stats
             })
-    except:
+    except Exception as e:
+        print(f"Error fetching free agents: {e}")
         pass
     
     return {
@@ -313,12 +342,12 @@ def main():
     print("Exporting league summary...")
     summary = export_league_summary(league)
     with open(DATA_DIR / 'league_summary.json', 'w') as f:
-        json.dump(summary, f, indent=2)
+        json.dump(summary, f, indent=2, default=json_serial)
     
     print("Exporting players...")
     players = export_players(league)
     with open(DATA_DIR / 'players.json', 'w') as f:
-        json.dump(players, f, indent=2)
+        json.dump(players, f, indent=2, default=json_serial)
     
     # Export current week and last week
     current_period = league.currentMatchupPeriod
@@ -329,13 +358,13 @@ def main():
         week_data = export_week_analytics(league, last_period)
         if week_data:
             with open(DATA_DIR / f'week{last_period}.json', 'w') as f:
-                json.dump(week_data, f, indent=2)
+                json.dump(week_data, f, indent=2, default=json_serial)
     
     print(f"Exporting week {current_period}...")
     week_data = export_week_analytics(league, current_period)
     if week_data:
         with open(DATA_DIR / f'week{current_period}.json', 'w') as f:
-            json.dump(week_data, f, indent=2)
+            json.dump(week_data, f, indent=2, default=json_serial)
     
     print("Export complete!")
 
