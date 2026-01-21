@@ -219,12 +219,9 @@ def export_week_analytics(league, matchup_period):
                     else:
                         logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{raw_logo}'
             
-            # If still empty, try to construct from team_id (ESPN fantasy team logo format)
-            # ESPN uses format: https://a.espncdn.com/i/teamlogos/default-team-logo-500.png
-            # Or try: https://a.espncdn.com/i/teamlogos/fba/500/{team_id}.png
-            if not logo_url:
-                # Try ESPN fantasy basketball team logo URL format
-                logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team.team_id}.png'
+            # ESPN doesn't provide fantasy team logos via API
+            # If logo_url is empty, leave it empty (frontend will handle with placeholder)
+            # Note: Custom logos are user-uploaded and not available via API
             
             teams_data.append({
                 'name': team_name,
@@ -286,10 +283,9 @@ def export_league_summary(league):
             else:
                 logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{raw_logo}'
         
-        # If still empty, try to construct from team_id (ESPN fantasy team logo format)
-        if not logo_url:
-            # Try ESPN fantasy basketball team logo URL format
-            logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team.team_id}.png'
+        # ESPN doesn't provide fantasy team logos via API
+        # If logo_url is empty, leave it empty (frontend will handle with placeholder)
+        # Note: Custom logos are user-uploaded and not available via API
         
         teams_summary.append({
             'rank': i,

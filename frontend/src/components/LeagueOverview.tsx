@@ -148,23 +148,23 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                     >
                       <td className="px-2 md:px-4 py-2 md:py-3">
                         <div className="flex items-center gap-2 md:gap-3">
-                          {team.logo_url && (
-                            <img 
-                              src={team.logo_url} 
-                              alt={team.name}
-                              className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
-                              onError={(e) => {
-                                // Try fallback URL if primary fails
-                                const img = e.target as HTMLImageElement
-                                if (!img.src.includes('default')) {
-                                  // Try default ESPN fantasy logo
-                                  img.src = `https://a.espncdn.com/i/teamlogos/default-team-logo-500.png`
-                                } else {
-                                  img.style.display = 'none'
-                                }
-                              }}
-                            />
-                          )}
+                          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                            {team.logo_url ? (
+                              <img 
+                                src={team.logo_url} 
+                                alt={team.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Hide image if it fails to load
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xs md:text-sm font-bold text-gray-400">
+                                {team.name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
                           <span className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
                             {team.name}
                           </span>

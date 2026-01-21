@@ -291,9 +291,8 @@ def get_league_stats():
                 team_id_for_logo = team_summary.get('team_id')
                 break
         
-        # If logo_url is still empty, try to construct from team_id
-        if not logo_url and team_id_for_logo:
-            logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team_id_for_logo}.png'
+        # ESPN doesn't provide fantasy team logos via API
+        # If logo_url is empty, leave it empty (frontend will handle with placeholder)
         
         teams_list.append({
             'name': team_name,
