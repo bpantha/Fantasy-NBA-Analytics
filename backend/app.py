@@ -773,15 +773,12 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         pro_schedule = league.pro_schedule
         
         # Find which scoring periods are in the current matchup period
+        # current_week is a matchup_period (1, 2, 3, etc.)
+        # league.matchup_ids maps matchup_period -> list of scoring_period strings
         matchup_scoring_periods = league.matchup_ids.get(current_week, [])
-        current_scoring_period = league.current_week
+        current_scoring_period = league.current_week  # This is the current scoring period ID (large number like 114)
         
-        if not matchup_scoring_periods:
-            # Fallback: use current scoring period through final
-            matchup_scoring_periods = [str(sp) for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
-        
-        # Convert to integers and find remaining scoring periods (from current through end of matchup)
-        # matchup_scoring_periods is a list of strings (scoring period IDs)
+        # Convert matchup_scoring_periods (list of strings) to integers
         scoring_periods = []
         for sp in matchup_scoring_periods:
             try:
@@ -790,7 +787,19 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
             except (ValueError, TypeError):
                 continue
         
+        # Find remaining scoring periods (from current through end of matchup)
+        # Only include scoring periods that are >= current and <= final
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
+        
+        # If no remaining periods found, the matchup might be over or we need to check future scoring periods
+        if not remaining_periods:
+            # Check if there are any future scoring periods beyond the matchup
+            # Use current scoring period through the final scoring period of the season
+            remaining_periods = [sp for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
+            # But only keep ones that are within the matchup if we can determine the matchup end
+            if scoring_periods:
+                matchup_end = max(scoring_periods)
+                remaining_periods = [sp for sp in remaining_periods if sp <= matchup_end]
         
         # For each remaining scoring period, check which players have games
         games_found = 0
@@ -902,7 +911,10 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
             'remaining_periods': remaining_periods,
             'projection_additions': projection_additions,
             'current_scoring_period': current_scoring_period,
-            'matchup_scoring_periods': matchup_scoring_periods
+            'matchup_scoring_periods': matchup_scoring_periods,
+            'all_scoring_periods': scoring_periods,
+            'current_matchup_period': current_week,
+            'final_scoring_period': league.finalScoringPeriod
         }
         
     except Exception as e:
