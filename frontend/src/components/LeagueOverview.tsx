@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import TeamModal from './TeamModal'
 import WeekModal from './WeekModal'
+import CategoryComparisonModal from './CategoryComparisonModal'
 
 interface LeagueStats {
   overall_performance: {
@@ -42,6 +43,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [loading, setLoading] = useState(true)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   useEffect(() => {
     axios.get(`${apiBase}/league/stats`)
@@ -145,15 +147,19 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             const leader = stats.category_performance.category_leaders[cat]
             if (!leader) return null
             return (
-              <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => setSelectedCategory(cat)}>
                 <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2">{cat}</h3>
                 <button
-                  onClick={() => setSelectedTeam(leader.team)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedTeam(leader.team)
+                  }}
                   className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block"
                 >
                   {leader.team}
                 </button>
                 <p className="text-lg md:text-xl font-bold mt-1">{leader.wins} wins</p>
+                <p className="text-xs text-gray-400 mt-1">Click to compare</p>
               </div>
             )
           })}
@@ -476,6 +482,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           week={selectedWeek}
           apiBase={apiBase}
           onClose={() => setSelectedWeek(null)}
+        />
+      )}
+      
+      {selectedCategory && (
+        <CategoryComparisonModal
+          category={selectedCategory}
+          apiBase={apiBase}
+          onClose={() => setSelectedCategory(null)}
         />
       )}
     </div>
