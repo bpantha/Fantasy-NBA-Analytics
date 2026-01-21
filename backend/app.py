@@ -770,11 +770,15 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
             matchup_scoring_periods = [str(sp) for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
         
         # Convert to integers and find remaining scoring periods (from current through end of matchup)
-        scoring_periods = [int(sp) for sp in matchup_scoring_periods if sp.isdigit()]
+        scoring_periods = [int(sp) for sp in matchup_scoring_periods if str(sp).isdigit()]
         current_scoring_period = league.current_week
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
+        print(f"DEBUG: Current week: {current_week}, Current scoring period: {current_scoring_period}")
+        print(f"DEBUG: Matchup scoring periods: {matchup_scoring_periods}, Remaining: {remaining_periods}")
+        
         # For each remaining scoring period, check which players have games
+        games_found = 0
         for scoring_period in remaining_periods:
             scoring_period_str = str(scoring_period)
             
@@ -811,12 +815,23 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 if scoring_period_str not in team_games:
                     continue
                 
-                # Player has a game in this scoring period - add their season averages
-                player_stats = getattr(player, 'stats', {})
-                season_total_key = f'{league.year}_total'
+                games_found += 1
+                print(f"DEBUG: Found game for {getattr(player, 'name', 'unknown')} ({pro_team_name}) in scoring period {scoring_period_str}")
                 
-                if season_total_key in player_stats:
-                    avg_stats = player_stats[season_total_key].get('avg', {})
+                # Player has a game in this scoring period - add their season averages
+                try:
+                    # Use nine_cat_averages property which is more reliable
+                    if hasattr(player, 'nine_cat_averages'):
+                        avg_stats = player.nine_cat_averages
+                    else:
+                        # Fallback to stats dict
+                        player_stats = getattr(player, 'stats', {})
+                        season_total_key = f'{league.year}_total'
+                        if season_total_key in player_stats:
+                            avg_stats = player_stats[season_total_key].get('avg', {})
+                        else:
+                            avg_stats = {}
+                    
                     if avg_stats:
                         # Add projected stats for this game
                         projected['PTS'] += float(avg_stats.get('PTS', 0))
@@ -827,17 +842,26 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projected['3PM'] += float(avg_stats.get('3PM', 0))
                         projected['TO'] += float(avg_stats.get('TO', 0))
                         
-                        # Track FG and FT for percentages
-                        fg_made += float(avg_stats.get('FGM', 0))
-                        fg_attempted += float(avg_stats.get('FGA', 0))
-                        ft_made += float(avg_stats.get('FTM', 0))
-                        ft_attempted += float(avg_stats.get('FTA', 0))
+                        # Track FG and FT for percentages - need to get from stats dict
+                        player_stats = getattr(player, 'stats', {})
+                        season_total_key = f'{league.year}_total'
+                        if season_total_key in player_stats:
+                            avg_stats_full = player_stats[season_total_key].get('avg', {})
+                            fg_made += float(avg_stats_full.get('FGM', 0))
+                            fg_attempted += float(avg_stats_full.get('FGA', 0))
+                            ft_made += float(avg_stats_full.get('FTM', 0))
+                            ft_attempted += float(avg_stats_full.get('FTA', 0))
+                except Exception as e:
+                    print(f"Error getting averages for player {getattr(player, 'name', 'unknown')}: {e}")
+                    continue
         
         # Recalculate percentages based on new totals
         if fg_attempted > 0:
             projected['FG%'] = fg_made / fg_attempted
         if ft_attempted > 0:
             projected['FT%'] = ft_made / ft_attempted
+        
+        print(f"DEBUG: Games found: {games_found}, Final projections: {projected}")
         
     except Exception as e:
         print(f"Error projecting stats: {e}")
