@@ -324,24 +324,24 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
               <h3 className="text-lg md:text-xl font-bold mb-4">vs {selectedTeamData.opponent_name}</h3>
               {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-green-400">
+                    <p className="text-2xl md:text-3xl font-bold text-green-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].won}
                     </p>
-                    <p className="text-sm text-gray-400">Categories Won</p>
+                    <p className="text-xs md:text-sm text-gray-400">Categories Won</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-red-400">
+                    <p className="text-2xl md:text-3xl font-bold text-red-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].lost}
                     </p>
-                    <p className="text-sm text-gray-400">Categories Lost</p>
+                    <p className="text-xs md:text-sm text-gray-400">Categories Lost</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-400">
+                    <p className="text-2xl md:text-3xl font-bold text-gray-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].tied}
                     </p>
-                    <p className="text-sm text-gray-400">Tied</p>
+                    <p className="text-xs md:text-sm text-gray-400">Tied</p>
                   </div>
                 </div>
               )}
@@ -354,9 +354,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             <div className="space-y-4">
               {Object.entries(selectedTeamData.matchup_details).map(([opponent, details]) => (
                 <div key={opponent} className="border border-gray-700 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold">{opponent}</h4>
-                    <span className={`px-3 py-1 rounded ${
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
+                    <h4 className="font-semibold text-sm md:text-base">{opponent}</h4>
+                    <span className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm ${
                       details.won >= 5 
                         ? 'bg-green-600 text-white' 
                         : details.won > details.lost 
@@ -368,10 +368,10 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                   </div>
                   {details.won_cats.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-sm text-gray-400 mb-1">Categories Won:</p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-xs md:text-sm text-gray-400 mb-1">Categories Won:</p>
+                      <div className="flex flex-wrap gap-1 md:gap-2">
                         {details.won_cats.map(cat => (
-                          <span key={cat} className="px-2 py-1 bg-green-700 rounded text-sm">
+                          <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm">
                             {cat}
                           </span>
                         ))}
@@ -380,10 +380,10 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                   )}
                   {details.lost_cats.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-sm text-gray-400 mb-1">Categories Lost:</p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-xs md:text-sm text-gray-400 mb-1">Categories Lost:</p>
+                      <div className="flex flex-wrap gap-1 md:gap-2">
                         {details.lost_cats.map(cat => (
-                          <span key={cat} className="px-2 py-1 bg-red-700 rounded text-sm">
+                          <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm">
                             {cat}
                           </span>
                         ))}
