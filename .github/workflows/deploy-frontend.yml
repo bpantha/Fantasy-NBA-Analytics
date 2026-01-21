@@ -3,7 +3,7 @@ name: Deploy Frontend to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
           npm run build
           npm run export
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api' }}
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
