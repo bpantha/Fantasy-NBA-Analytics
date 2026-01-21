@@ -29,12 +29,44 @@ interface LeagueStats {
     cold_teams: Array<{ name: string; avg: number }>
   }
   head_to_head: {
-    most_rivalries: Array<any>
-    dominant_matchups: Array<any>
+    best_matchups?: Array<{
+      team: string
+      opponent: string
+      wins: number
+      total: number
+      win_rate: number
+    }>
+    worst_matchups?: Array<{
+      team: string
+      opponent: string
+      wins: number
+      total: number
+      win_rate: number
+    }>
+    category_specialists?: Record<string, {
+      team: string
+      win_rate: number
+    }>
+    most_consistent_weekly?: Array<{
+      name: string
+      variance: number
+      avg: number
+    }>
+    least_consistent_weekly?: Array<{
+      name: string
+      variance: number
+      avg: number
+    }>
   }
   weekly_performance: {
     best_single_week: any
-    most_improved: any
+    most_improved: {
+      name: string
+      improvement: number
+      early_avg: number
+      recent_avg: number
+      description?: string
+    } | null
   }
 }
 
@@ -450,7 +482,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             <div className="bg-gray-700 p-4 rounded-lg">
               <h3 className="text-sm text-gray-400 mb-1">Most Improved</h3>
               <button
-                onClick={() => setSelectedTeam(stats.weekly_performance.most_improved.name)}
+                onClick={() => setSelectedTeam(stats.weekly_performance.most_improved!.name)}
                 className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
                 {stats.weekly_performance.most_improved.name}

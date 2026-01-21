@@ -295,7 +295,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                 {leaderboard.map((entry, index) => {
                   const teamData = weekData?.teams.find(t => t.name === entry.team_name)
                   const minutes = teamData?.minutes_played || 0
-                  const vsAvg = teamData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
+                  const vsAvg = teamData && weekData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
                   return (
                     <tr 
                       key={entry.team_name} 
