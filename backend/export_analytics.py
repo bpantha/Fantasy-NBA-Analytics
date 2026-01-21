@@ -238,19 +238,9 @@ def export_week_analytics(league, matchup_period):
                 'matchup_details': stats['matchup_details']
             })
         
-        # Calculate week dates (estimate based on matchup period - typically 7 days per week)
-        # Week 1 usually starts around season start date
-        # For 2026 season, estimate Oct 15, 2025 as start
-        from datetime import timedelta
-        season_start = datetime(2025, 10, 15)  # Approximate NBA season start
-        week_start = season_start + timedelta(days=(matchup_period - 1) * 7)
-        week_end = week_start + timedelta(days=6)
-        
         return {
             'matchup_period': matchup_period,
             'export_date': datetime.now().isoformat(),
-            'week_start_date': week_start.strftime('%Y-%m-%d'),
-            'week_end_date': week_end.strftime('%Y-%m-%d'),
             'league_avg_minutes': league_avg_minutes,
             'teams': teams_data
         }

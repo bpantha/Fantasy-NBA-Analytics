@@ -126,7 +126,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       {/* League Standings Table */}
       {stats.teams_list && stats.teams_list.length > 0 && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
-          <h2 className="text-xl md:text-2xl font-bold mb-4">League Standings</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 League Standings</h2>
           <div className="min-w-full">
             <table className="w-full text-sm md:text-base">
               <thead className="bg-gray-700">
@@ -148,18 +148,27 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                     >
                       <td className="px-2 md:px-4 py-2 md:py-3">
                         <div className="flex items-center gap-2 md:gap-3">
-                          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                             {team.logo_url ? (
                               <img 
                                 src={team.logo_url} 
                                 alt={team.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  // Hide image if it fails to load
-                                  (e.target as HTMLImageElement).style.display = 'none'
+                                  // Show placeholder when image fails
+                                  const img = e.target as HTMLImageElement
+                                  img.style.display = 'none'
+                                  const parent = img.parentElement
+                                  if (parent && !parent.querySelector('.logo-placeholder')) {
+                                    const placeholder = document.createElement('span')
+                                    placeholder.className = 'logo-placeholder text-xs md:text-sm font-bold text-gray-400'
+                                    placeholder.textContent = team.name.charAt(0).toUpperCase()
+                                    parent.appendChild(placeholder)
+                                  }
                                 }}
                               />
-                            ) : (
+                            ) : null}
+                            {(!team.logo_url || !team.logo_url.trim()) && (
                               <span className="text-xs md:text-sm font-bold text-gray-400">
                                 {team.name.charAt(0).toUpperCase()}
                               </span>
@@ -178,15 +187,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               </tbody>
             </table>
           </div>
-          <p className="text-xs md:text-sm text-gray-400 mt-3">Click on a team name to view details</p>
+          <p className="text-xs md:text-sm text-gray-400 mt-3">👆 Click on a team name to view details</p>
         </section>
       )}
 
       {/* Category Dominance */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl md:text-2xl font-bold">Category Dominance</h2>
-          <p className="text-xs md:text-sm text-gray-400">Click any category to compare all teams</p>
+          <h2 className="text-xl md:text-2xl font-bold">📊 Category Dominance</h2>
+          <p className="text-xs md:text-sm text-gray-400">👆 Click any category to compare all teams</p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {categories.map(cat => {
@@ -195,16 +204,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             return (
               <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors border border-transparent hover:border-blue-500" onClick={() => setSelectedCategory(cat)}>
                 <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{cat}</h3>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedTeam(leader.team)
-                  }}
-                  className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block w-full text-center underline decoration-dotted"
-                  title="Click team name for team details"
-                >
+                <p className="text-sm md:text-base font-bold text-blue-400 block w-full text-center">
                   {leader.team}
-                </button>
+                </p>
                 <p className="text-lg md:text-xl font-bold mt-1 text-center">{leader.wins} {leader.wins === 1 ? 'win' : 'wins'}</p>
               </div>
             )
@@ -212,13 +214,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         </div>
         {stats.category_performance.most_balanced && (
           <div className="mt-4 p-3 md:p-4 bg-gray-700 rounded-lg">
-            <h3 className="text-sm text-gray-400 mb-1">Most Balanced Team</h3>
-            <button
-              onClick={() => setSelectedTeam(stats.category_performance.most_balanced!)}
-              className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-            >
+            <h3 className="text-sm text-gray-400 mb-1">⚖️ Most Balanced Team</h3>
+            <p className="text-lg font-bold text-blue-400">
               {stats.category_performance.most_balanced}
-            </button>
+            </p>
             <p className="text-sm text-gray-400 mt-1">Wins across all categories</p>
           </div>
         )}
@@ -226,43 +225,34 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
       {/* Overall Performance */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Overall Performance</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 Overall Performance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.overall_performance.total_wins_leader && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Total Wins Leader</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.total_wins_leader.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">🥇 Total Wins Leader</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.total_wins_leader.name}
-              </button>
+              </p>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.overall_performance.total_wins_leader.total_wins} wins</p>
             </div>
           )}
           
           {stats.overall_performance.win_pct_leader && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Win % Leader</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.win_pct_leader.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">📈 Win % Leader</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.win_pct_leader.name}
-              </button>
+              </p>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.overall_performance.win_pct_leader.win_percentage}%</p>
             </div>
           )}
           
           {stats.overall_performance.most_dominant && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Dominant</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.most_dominant.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">👑 Most Dominant</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.most_dominant.name}
-              </button>
+              </p>
               <p className="text-base md:text-lg font-bold mt-1">{stats.overall_performance.most_dominant.avg_teams_beaten.toFixed(1)}</p>
               <p className="text-xs text-gray-400 mt-1">Average teams beaten per week</p>
             </div>
@@ -270,13 +260,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           
           {stats.overall_performance.most_consistent && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Consistent</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.most_consistent.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">🎯 Most Consistent</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.most_consistent.name}
-              </button>
+              </p>
               <p className="text-xs md:text-sm text-gray-400 mt-1">Low variance</p>
             </div>
           )}
@@ -285,17 +272,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
       {/* Activity Metrics */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Activity Metrics</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4">⚡ Activity Metrics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           {stats.activity_metrics.most_active && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Active</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.activity_metrics.most_active.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">🔥 Most Active</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.activity_metrics.most_active.name}
-              </button>
+              </p>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.most_active.avg_minutes_per_week?.toFixed(1) || stats.activity_metrics.most_active.total_minutes.toFixed(0)}</p>
               <p className="text-xs text-gray-400 mt-1">{stats.activity_metrics.most_active.avg_minutes_per_week ? 'Average minutes per week' : 'Total minutes'}</p>
             </div>
@@ -303,13 +287,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           
           {stats.activity_metrics.efficiency_leader && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Efficiency Leader</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.activity_metrics.efficiency_leader.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">💎 Efficiency Leader</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.activity_metrics.efficiency_leader.name}
-              </button>
+              </p>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.efficiency_leader.efficiency.toFixed(2)}</p>
               <p className="text-xs text-gray-400 mt-1">wins per 1000 min</p>
             </div>
@@ -322,37 +303,31 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <h2 className="text-xl md:text-2xl font-bold mb-4">Streaks & Trends</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Current Win Streaks</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">🔥 Current Win Streaks</h3>
             <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
-                    {team.name}
-                  </button>
-                  <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
-                </div>
+                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
+                      <span className="text-sm md:text-base text-blue-400 font-medium">
+                        {team.name}
+                      </span>
+                      <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                    </div>
               ))}
             </div>
           </div>
           
           <div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Longest Streaks (All-Time)</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">🏆 Longest Streaks (All-Time)</h3>
             <p className="text-xs text-gray-400 mb-2">Longest consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
-                    {team.name}
-                  </button>
-                  <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
-                </div>
+                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
+                      <span className="text-sm md:text-base text-blue-400 font-medium">
+                        {team.name}
+                      </span>
+                      <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                    </div>
               ))}
             </div>
           </div>
@@ -365,12 +340,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             <div className="space-y-2">
               {stats.streaks_trends.hot_teams.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
+                  <span className="text-sm md:text-base text-blue-400 font-medium">
                     {team.name}
-                  </button>
+                  </span>
                   <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
                 </div>
               ))}
@@ -383,12 +355,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             <div className="space-y-2">
               {stats.streaks_trends.cold_teams.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
+                  <span className="text-sm md:text-base text-blue-400 font-medium">
                     {team.name}
-                  </button>
+                  </span>
                   <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten on average</span>
                 </div>
               ))}
@@ -400,7 +369,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       {/* Weekly Consistency */}
       {stats.head_to_head.most_consistent_weekly && stats.head_to_head.most_consistent_weekly.length > 0 && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-          <h2 className="text-xl md:text-2xl font-bold mb-4">Weekly Consistency</h2>
+          <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Weekly Consistency</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div>
               <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Most Consistent Weekly</h3>
@@ -410,12 +379,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   ?.sort((a, b) => a.variance - b.variance)
                   .map((team, idx) => (
                     <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                      <button
-                        onClick={() => setSelectedTeam(team.name)}
-                        className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                      >
+                      <span className="text-sm md:text-base text-blue-400 font-medium">
                         {team.name}
-                      </button>
+                      </span>
                       <div className="text-right">
                         <span className="text-sm md:text-base font-bold">{team.avg.toFixed(1)} avg</span>
                         <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
@@ -433,12 +399,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   ?.sort((a, b) => b.variance - a.variance)
                   .map((team, idx) => (
                     <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
-                      <button
-                        onClick={() => setSelectedTeam(team.name)}
-                        className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                      >
+                      <span className="text-sm md:text-base text-blue-400 font-medium">
                         {team.name}
-                      </button>
+                      </span>
                       <div className="text-right">
                         <span className="text-sm md:text-base font-bold">{team.avg.toFixed(1)} avg</span>
                         <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
@@ -453,7 +416,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
       {/* Weekly Performance */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Weekly Performance</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4">📅 Weekly Performance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           {stats.weekly_performance.best_single_week && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">

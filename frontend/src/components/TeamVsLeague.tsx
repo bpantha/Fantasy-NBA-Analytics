@@ -233,16 +233,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
             className="w-full bg-gray-700 text-white px-4 py-2 rounded"
           >
-            {weeks.map(week => {
-              const weekData = allWeeksData[week]
-              let label = `Week ${week}`
-              if (weekData?.week_start_date && weekData?.week_end_date) {
-                const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                label = `Week ${week} (${start} - ${end})`
-              }
-              return <option key={week} value={week}>{label}</option>
-            })}
+            {weeks.map(week => (
+              <option key={week} value={week}>Week {week}</option>
+            ))}
           </select>
         </div>
 
@@ -263,7 +256,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       {/* Bar Graph */}
       {graphData.length > 0 && (
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-          <h2 className="text-lg md:text-xl font-bold mb-4">Teams Beaten Over Time - {selectedTeam}</h2>
+          <h2 className="text-lg md:text-xl font-bold mb-4">📊 Teams Beaten Over Time - {selectedTeam}</h2>
           <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
             <BarChart data={graphData} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -277,15 +270,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
                 labelStyle={{ color: '#F3F4F6' }}
                 formatter={(value: any) => [`Teams Beaten: ${value}`, '']}
-                labelFormatter={(label: any) => {
-                  const weekData = allWeeksData[label]
-                  if (weekData?.week_start_date && weekData?.week_end_date) {
-                    const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    return `Week ${label} (${start} - ${end})`
-                  }
-                  return `Week ${label}`
-                }}
+                labelFormatter={(label: any) => `Week ${label}`}
               />
               <Legend />
               <Bar dataKey="teamsBeaten" fill="#3B82F6" name="Teams Beaten">
@@ -305,7 +290,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       {/* Weekly Leaderboard */}
       {leaderboard.length > 0 && (
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-          <h2 className="text-lg md:text-xl font-bold mb-4">Week {selectedWeek} Leaderboard</h2>
+          <h2 className="text-lg md:text-xl font-bold mb-4">🏆 Week {selectedWeek} Leaderboard</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm md:text-base">
               <thead className="bg-gray-700">
@@ -393,26 +378,26 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           {/* Opponent Matchup */}
           {selectedTeamData.opponent_name && (
             <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-              <h3 className="text-lg md:text-xl font-bold mb-4">vs {selectedTeamData.opponent_name}</h3>
+              <h3 className="text-lg md:text-xl font-bold mb-4">⚔️ vs {selectedTeamData.opponent_name}</h3>
               {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
                 <div className="grid grid-cols-3 gap-2 md:gap-4">
                   <div className="text-center">
                     <p className="text-2xl md:text-3xl font-bold text-green-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].won}
                     </p>
-                    <p className="text-xs md:text-sm text-gray-400">Categories Won</p>
+                    <p className="text-xs md:text-sm text-gray-400">✅ Categories Won</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl md:text-3xl font-bold text-red-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].lost}
                     </p>
-                    <p className="text-xs md:text-sm text-gray-400">Categories Lost</p>
+                    <p className="text-xs md:text-sm text-gray-400">❌ Categories Lost</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl md:text-3xl font-bold text-gray-400">
                       {selectedTeamData.matchup_details[selectedTeamData.opponent_name].tied}
                     </p>
-                    <p className="text-xs md:text-sm text-gray-400">Tied</p>
+                    <p className="text-xs md:text-sm text-gray-400">🤝 Tied</p>
                   </div>
                 </div>
               )}
@@ -440,20 +425,26 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       </span>
                     </div>
                     
-                    {/* Minutes Played vs Opponent */}
-                    {oppMinutes && (
-                      <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-3 md:p-4 rounded-lg mb-3">
-                        <h5 className="text-xs md:text-sm font-semibold text-orange-200 mb-1">Minutes Played</h5>
-                        <p className="text-2xl md:text-3xl font-bold">{oppMinutes.minutes.toFixed(0)}</p>
-                        <p className="text-xs md:text-sm text-orange-200 mt-1">
-                          {oppMinutes.vsAvg > 0 ? '+' : ''}{oppMinutes.vsAvg.toFixed(1)} vs Week {oppMinutes.week} League Avg Minutes
-                        </p>
-                      </div>
-                    )}
+                    {/* Minutes Played vs Opponent - use selected week's data */}
+                    {selectedWeek && weekData && (() => {
+                      const teamWeekData = weekData.teams.find(t => t.name === selectedTeam)
+                      const teamMinutes = teamWeekData?.minutes_played || 0
+                      const weekAvg = weekData.league_avg_minutes || 0
+                      const vsAvg = teamMinutes - weekAvg
+                      return (
+                        <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-2 md:p-3 rounded-lg mb-2">
+                          <h5 className="text-xs font-semibold text-orange-200 mb-1">⏱️ Minutes Played</h5>
+                          <p className="text-xl md:text-2xl font-bold">{teamMinutes.toFixed(0)}</p>
+                          <p className="text-xs text-orange-200 mt-1">
+                            {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)} vs Week {selectedWeek} League Avg Minutes
+                          </p>
+                        </div>
+                      )
+                    })()}
                     
                     {details.won_cats.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-xs md:text-sm text-gray-400 mb-1">Categories Won:</p>
+                        <p className="text-xs md:text-sm text-gray-400 mb-1">✅ Categories Won:</p>
                         <div className="flex flex-wrap gap-1 md:gap-2">
                           {details.won_cats.map(cat => (
                             <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm">
@@ -465,7 +456,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                     )}
                     {details.lost_cats.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-xs md:text-sm text-gray-400 mb-1">Categories Lost:</p>
+                        <p className="text-xs md:text-sm text-gray-400 mb-1">❌ Categories Lost:</p>
                         <div className="flex flex-wrap gap-1 md:gap-2">
                           {details.lost_cats.map(cat => (
                             <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm">

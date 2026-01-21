@@ -86,18 +86,27 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                       <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
                       <td className="px-2 md:px-4 py-2 md:py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                             {team.logo_url ? (
                               <img 
                                 src={team.logo_url} 
                                 alt={team.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  // Hide image if it fails to load
-                                  (e.target as HTMLImageElement).style.display = 'none'
+                                  // Show placeholder when image fails
+                                  const img = e.target as HTMLImageElement
+                                  img.style.display = 'none'
+                                  const parent = img.parentElement
+                                  if (parent && !parent.querySelector('.logo-placeholder')) {
+                                    const placeholder = document.createElement('span')
+                                    placeholder.className = 'logo-placeholder text-xs md:text-sm font-bold text-gray-400'
+                                    placeholder.textContent = team.name.charAt(0).toUpperCase()
+                                    parent.appendChild(placeholder)
+                                  }
                                 }}
                               />
-                            ) : (
+                            ) : null}
+                            {(!team.logo_url || !team.logo_url.trim()) && (
                               <span className="text-xs md:text-sm font-bold text-gray-400">
                                 {team.name.charAt(0).toUpperCase()}
                               </span>

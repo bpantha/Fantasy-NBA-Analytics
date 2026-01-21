@@ -14,7 +14,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 p-2 md:p-4">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
-          <h1 className="text-xl md:text-2xl font-bold">🏀 Las Puntas Dynasty League</h1>
+          <h1 className="text-xl md:text-2xl font-bold">🏀 Las Puntas Dynasty League 🏀</h1>
           <div className="bg-gray-700 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm md:text-base text-center w-full md:w-auto">
             AI Agent Coming Soon
           </div>

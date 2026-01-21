@@ -67,17 +67,10 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               className="w-full bg-gray-700 text-white px-4 py-2 rounded"
             >
-              {weeks.map(week => {
-                // Load week data to get dates - for now just show week number
-                // Dates will be shown in tooltip/hover if available
-                return <option key={week} value={week}>Week {week}</option>
-              })}
+              {weeks.map(week => (
+                <option key={week} value={week}>Week {week}</option>
+              ))}
             </select>
-            {weekData?.week_start_date && weekData?.week_end_date && (
-              <p className="text-xs text-gray-400 mt-1">
-                {new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </p>
-            )}
           </div>
 
           {loading && (
@@ -88,19 +81,19 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-sm text-gray-400 mb-1">Teams Beaten</h3>
+                  <h3 className="text-sm text-gray-400 mb-1">🏆 Teams Beaten</h3>
                   <p className="text-2xl font-bold">{teamData.total_teams_beaten}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-sm text-gray-400 mb-1">Category Wins</h3>
+                  <h3 className="text-sm text-gray-400 mb-1">✅ Category Wins</h3>
                   <p className="text-2xl font-bold">{teamData.total_category_wins}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-sm text-gray-400 mb-1">Minutes</h3>
+                  <h3 className="text-sm text-gray-400 mb-1">⏱️ Minutes</h3>
                   <p className="text-2xl font-bold">{teamData.minutes_played.toFixed(0)}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-sm text-gray-400 mb-1">vs League Avg Minutes</h3>
+                  <h3 className="text-sm text-gray-400 mb-1">📊 vs League Avg Minutes</h3>
                   <p className="text-2xl font-bold">
                     {teamData.minutes_vs_league_avg > 0 ? '+' : ''}
                     {teamData.minutes_vs_league_avg.toFixed(1)}
@@ -113,26 +106,26 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
 
               {teamData.opponent_name && (
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-2">vs {teamData.opponent_name}</h3>
+                  <h3 className="text-lg font-semibold mb-2">⚔️ vs {teamData.opponent_name}</h3>
                   {teamData.matchup_details[teamData.opponent_name] && (
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-green-400">
                           {teamData.matchup_details[teamData.opponent_name].won}
                         </p>
-                        <p className="text-sm text-gray-400">Won</p>
+                        <p className="text-sm text-gray-400">✅ Won</p>
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-red-400">
                           {teamData.matchup_details[teamData.opponent_name].lost}
                         </p>
-                        <p className="text-sm text-gray-400">Lost</p>
+                        <p className="text-sm text-gray-400">❌ Lost</p>
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-gray-400">
                           {teamData.matchup_details[teamData.opponent_name].tied}
                         </p>
-                        <p className="text-sm text-gray-400">Tied</p>
+                        <p className="text-sm text-gray-400">🤝 Tied</p>
                       </div>
                     </div>
                   )}
