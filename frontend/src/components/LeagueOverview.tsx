@@ -5,6 +5,7 @@ import axios from 'axios'
 import TeamModal from './TeamModal'
 import WeekModal from './WeekModal'
 import CategoryComparisonModal from './CategoryComparisonModal'
+import ImprovementComparisonModal from './ImprovementComparisonModal'
 
 interface LeagueStats {
   overall_performance: {
@@ -87,6 +88,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [showImprovementModal, setShowImprovementModal] = useState(false)
   const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -159,15 +161,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       {stats.streaks_trends && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
           <h2 className="text-xl md:text-2xl font-bold mb-4">📈 Streaks & Trends</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <div>
               <h3 className="text-sm md:text-base font-semibold mb-2 text-green-400">🔥 Current Win Streaks</h3>
               <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better (excluding current week)</p>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
-                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
-                    <span className="text-sm md:text-base font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center gap-2">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium truncate flex-1">{team.name}</span>
+                    <span className="text-sm md:text-base font-bold whitespace-nowrap">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
                   </div>
                 ))}
               </div>
@@ -178,9 +180,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-xs text-gray-400 mb-2">All-time longest consecutive wins</p>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
-                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
-                    <span className="text-sm md:text-base font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center gap-2">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium truncate flex-1">{team.name}</span>
+                    <span className="text-sm md:text-base font-bold whitespace-nowrap">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
                   </div>
                 ))}
               </div>
@@ -191,22 +193,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-xs text-gray-400 mb-2">Best performance in last 4 weeks</p>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {stats.streaks_trends.hot_teams.map((team, idx) => (
-                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
-                    <span className="text-xs md:text-sm font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-sm md:text-base font-semibold mb-2 text-red-400">❄️ Cold Teams</h3>
-              <p className="text-xs text-gray-400 mb-2">Worst performance in last 4 weeks</p>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {stats.streaks_trends.cold_teams.map((team, idx) => (
-                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center">
-                    <span className="text-xs md:text-sm text-blue-400 font-medium">{team.name}</span>
-                    <span className="text-xs md:text-sm font-bold">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten</span>
+                  <div key={idx} className="bg-gray-700 p-2 rounded-lg flex justify-between items-center gap-2">
+                    <span className="text-xs md:text-sm text-blue-400 font-medium truncate flex-1">{team.name}</span>
+                    <span className="text-xs md:text-sm font-bold whitespace-nowrap">{team.avg.toFixed(1)} {team.avg === 1 ? 'team' : 'teams'} beaten</span>
                   </div>
                 ))}
               </div>
@@ -308,7 +297,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             if (!leader) return null
             return (
               <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors border border-transparent hover:border-blue-500" onClick={() => setSelectedCategory(cat)}>
-                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{categoryEmojis[cat]} {cat}</h3>
+                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{cat}</h3>
                 <p className="text-sm md:text-base font-bold text-blue-400 block w-full text-center">
                   {leader.team}
                 </p>
@@ -466,7 +455,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
           
           {stats.weekly_performance.most_improved && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div 
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setShowImprovementModal(true)}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">📈 Most Improved</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.weekly_performance.most_improved.name}
@@ -474,11 +466,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <p className="text-base md:text-lg font-bold mt-1 text-green-400">
                 +{stats.weekly_performance.most_improved.improvement.toFixed(1)}
               </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Calculation: Compares average teams beaten in first 4 weeks vs last 4 weeks (requires 8+ weeks played)
+              </p>
               {stats.weekly_performance.most_improved.description && (
                 <p className="text-xs text-gray-400 mt-1">
                   {stats.weekly_performance.most_improved.description}
                 </p>
               )}
+              <p className="text-xs text-blue-400 mt-2">👆 Click to view detailed comparison</p>
             </div>
           )}
         </div>
@@ -506,6 +502,13 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           category={selectedCategory}
           apiBase={apiBase}
           onClose={() => setSelectedCategory(null)}
+        />
+      )}
+      
+      {showImprovementModal && (
+        <ImprovementComparisonModal
+          apiBase={apiBase}
+          onClose={() => setShowImprovementModal(false)}
         />
       )}
     </div>

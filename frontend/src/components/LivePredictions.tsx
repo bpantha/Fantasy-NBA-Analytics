@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+// Removed bar chart imports - no longer using charts
 
 interface Prediction {
   team1: string
@@ -90,14 +90,6 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
 
   const selectedPrediction = selectedMatchup !== null ? predictions[selectedMatchup] : null
 
-  // Prepare chart data
-  const chartData = selectedPrediction?.categories.map(cat => ({
-    category: cat.category,
-    [selectedPrediction.team1]: cat.team1_projected,
-    [selectedPrediction.team2]: cat.team2_projected,
-    winner: cat.winner
-  })) || []
-
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
@@ -130,86 +122,84 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
           </select>
         </div>
 
-        {selectedPrediction && (
-          <div className="space-y-6">
-            {/* Projected Score */}
-            <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg text-center">
-              <h3 className="text-lg md:text-xl font-bold mb-2">Projected Score</h3>
-              <p className="text-3xl md:text-4xl font-bold">{selectedPrediction.projected_score}</p>
-              <p className="text-sm text-purple-200 mt-2">Confidence: {selectedPrediction.confidence}%</p>
-            </div>
+        {selectedPrediction && (() => {
+          // Determine winner
+          const scoreParts = selectedPrediction.projected_score.split('-')
+          const team1Wins = parseInt(scoreParts[0])
+          const team2Wins = parseInt(scoreParts[1])
+          const winner = team1Wins > team2Wins ? selectedPrediction.team1 : 
+                        team2Wins > team1Wins ? selectedPrediction.team2 : 
+                        'Tie'
+          
+          return (
+            <div className="space-y-6">
+              {/* Projected Score and Winner */}
+              <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg text-center">
+                <h3 className="text-lg md:text-xl font-bold mb-2">Projected Final Score</h3>
+                <p className="text-3xl md:text-4xl font-bold mb-2">{selectedPrediction.projected_score}</p>
+                {winner !== 'Tie' && (
+                  <p className="text-xl md:text-2xl font-bold text-yellow-300 mt-2">
+                    🏆 Winner: {winner}
+                  </p>
+                )}
+                {winner === 'Tie' && (
+                  <p className="text-xl md:text-2xl font-bold text-gray-300 mt-2">
+                    🤝 Tie Game
+                  </p>
+                )}
+                <p className="text-sm text-purple-200 mt-2">Confidence: {selectedPrediction.confidence}%</p>
+                <p className="text-xs text-purple-200/80 mt-1">Projections based on current stats + remaining games through Sunday</p>
+              </div>
 
-            {/* Category Predictions Chart */}
-            <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
-              <h3 className="text-lg md:text-xl font-bold mb-4">Category-by-Category Predictions</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="category" 
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                  />
-                  <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
-                    labelStyle={{ color: '#F3F4F6' }}
-                  />
-                  <Legend />
-                  <Bar dataKey={selectedPrediction.team1} fill="#3B82F6" name={selectedPrediction.team1}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.winner === selectedPrediction.team1 ? '#10B981' : '#3B82F6'} />
-                    ))}
-                  </Bar>
-                  <Bar dataKey={selectedPrediction.team2} fill="#EF4444" name={selectedPrediction.team2}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.winner === selectedPrediction.team2 ? '#10B981' : '#EF4444'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Detailed Category Breakdown */}
-            <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
-              <h3 className="text-lg md:text-xl font-bold mb-4">Detailed Breakdown</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                {selectedPrediction.categories.map((cat, idx) => (
-                  <div 
-                    key={idx} 
-                    className={`p-3 rounded-lg border-2 ${
-                      cat.winner === selectedPrediction.team1 
-                        ? 'border-green-500 bg-green-900/20' 
-                        : cat.winner === selectedPrediction.team2
-                        ? 'border-red-500 bg-red-900/20'
-                        : 'border-gray-600 bg-gray-800'
-                    }`}
-                  >
-                    <h4 className="font-bold text-center mb-2">{cat.category}</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className={cat.winner === selectedPrediction.team1 ? 'text-green-400 font-bold' : 'text-gray-300'}>
-                          {selectedPrediction.team1}:
-                        </span>
-                        <span className={cat.winner === selectedPrediction.team1 ? 'text-green-400 font-bold' : 'text-gray-300'}>
-                          {formatCategoryValue(cat.category, cat.team1_projected)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className={cat.winner === selectedPrediction.team2 ? 'text-red-400 font-bold' : 'text-gray-300'}>
-                          {selectedPrediction.team2}:
-                        </span>
-                        <span className={cat.winner === selectedPrediction.team2 ? 'text-red-400 font-bold' : 'text-gray-300'}>
-                          {formatCategoryValue(cat.category, cat.team2_projected)}
-                        </span>
+              {/* Detailed Category Breakdown */}
+              <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
+                <h3 className="text-lg md:text-xl font-bold mb-4">Projected End-of-Week Category Totals</h3>
+                <p className="text-xs text-gray-400 mb-4">
+                  Values show projected totals after all remaining games through Sunday. Only healthy/DTD players are included.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                  {selectedPrediction.categories.map((cat, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-3 rounded-lg border-2 ${
+                        cat.winner === selectedPrediction.team1 
+                          ? 'border-green-500 bg-green-900/20' 
+                          : cat.winner === selectedPrediction.team2
+                          ? 'border-red-500 bg-red-900/20'
+                          : 'border-gray-600 bg-gray-800'
+                      }`}
+                    >
+                      <h4 className="font-bold text-center mb-2">{cat.category}</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className={cat.winner === selectedPrediction.team1 ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                            {selectedPrediction.team1}:
+                          </span>
+                          <span className={cat.winner === selectedPrediction.team1 ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                            {formatCategoryValue(cat.category, cat.team1_projected)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className={cat.winner === selectedPrediction.team2 ? 'text-red-400 font-bold' : 'text-gray-300'}>
+                            {selectedPrediction.team2}:
+                          </span>
+                          <span className={cat.winner === selectedPrediction.team2 ? 'text-red-400 font-bold' : 'text-gray-300'}>
+                            {formatCategoryValue(cat.category, cat.team2_projected)}
+                          </span>
+                        </div>
+                        {cat.winner !== 'Tie' && (
+                          <p className="text-xs text-center mt-2 text-gray-400">
+                            Winner: {cat.winner}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

@@ -610,6 +610,10 @@ def get_league_stats():
             **most_improved,
             'description': f"Improved from {most_improved['early_avg']} to {most_improved['recent_avg']} teams beaten per week (+{most_improved['improvement']} improvement)"
         }
+        # Add all improved teams for comparison modal
+        results['weekly_performance']['improved_teams'] = sorted(improved_teams, key=lambda x: x['improvement'], reverse=True)
+    else:
+        results['weekly_performance']['improved_teams'] = []
     
     # Add teams_list to results
     results['teams_list'] = teams_list
@@ -719,9 +723,17 @@ def get_predictions():
         return jsonify({'error': str(e)}), 500
 
 def project_team_stats(box_score, team, opponent, is_home, league, current_week):
-    """Project team stats based on current lineup, injuries, and remaining games"""
+    """Project team stats based on current accumulated stats + remaining games"""
+    from datetime import datetime, timedelta
+    
     standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
     projected = {cat: 0.0 for cat in standard_cats}
+    
+    # For percentage categories, we need to track numerator and denominator
+    fg_made = 0.0
+    fg_attempted = 0.0
+    ft_made = 0.0
+    ft_attempted = 0.0
     
     try:
         lineup = box_score.home_lineup if is_home else box_score.away_lineup
@@ -729,35 +741,114 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
         if not lineup:
             return projected
         
-        # Get current stats from box score
+        # Get current accumulated stats from box score
         stats = box_score.home_stats if is_home else box_score.away_stats
         
         if stats:
+            # Get current totals (what's already happened this week)
             for cat in standard_cats:
                 if cat in stats:
                     value = stats[cat].get('value', 0)
                     projected[cat] = float(value) if value else 0.0
+            
+            # Get FG and FT data for percentage calculations
+            if 'FGM' in stats:
+                fg_made = float(stats['FGM'].get('value', 0))
+            if 'FGA' in stats:
+                fg_attempted = float(stats['FGA'].get('value', 0))
+            if 'FTM' in stats:
+                ft_made = float(stats['FTM'].get('value', 0))
+            if 'FTA' in stats:
+                ft_attempted = float(stats['FTA'].get('value', 0))
         
-        # Adjust for injuries and remaining games
-        # Count active players (not OUT)
-        active_players = 0
-        for player in lineup:
-            injury_status = getattr(player, 'injuryStatus', None) or ''
-            if injury_status.upper() != 'OUT':
-                active_players += 1
+        # Get today's date and calculate remaining days until Sunday
+        today = datetime.now().date()
+        # Find next Sunday
+        days_until_sunday = (6 - today.weekday()) % 7
+        if days_until_sunday == 0 and today.weekday() != 6:
+            days_until_sunday = 7
+        sunday = today + timedelta(days=days_until_sunday)
         
-        # Simple projection: scale based on active players and remaining games
-        # This is a simplified version - can be enhanced with actual game schedules
-        days_remaining = 7 - (datetime.now().weekday() % 7)  # Rough estimate
-        games_remaining_factor = max(0.5, min(1.5, days_remaining / 7))
+        # Get all pro team schedules for the week
+        pro_schedule = league._get_all_pro_schedule()
         
-        # Adjust projections (this is simplified - real implementation would use actual schedules)
-        for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']:
-            if projected[cat] > 0:
-                projected[cat] *= games_remaining_factor
+        # For each remaining day (today through Sunday)
+        current_date = today
+        while current_date <= sunday:
+            # Check each player in lineup
+            for player in lineup:
+                # Check injury status - only include healthy or DTD players
+                injury_status = getattr(player, 'injuryStatus', None) or ''
+                if injury_status.upper() == 'OUT':
+                    continue
+                
+                # Check if player has a game on this date
+                pro_team_id = getattr(player, 'proTeamId', None)
+                if not pro_team_id:
+                    # Try to get from proTeam attribute
+                    pro_team = getattr(player, 'proTeam', None)
+                    if pro_team:
+                        # Map pro team name to ID (simplified - may need full mapping)
+                        continue
+                
+                # Check player's schedule for this week
+                player_schedule = getattr(player, 'schedule', {})
+                has_game_today = False
+                
+                # Check if player has a game on current_date
+                for period_id, game_info in player_schedule.items():
+                    if isinstance(game_info, dict) and 'date' in game_info:
+                        game_date = game_info['date']
+                        if isinstance(game_date, datetime):
+                            game_date = game_date.date()
+                        elif isinstance(game_date, str):
+                            try:
+                                game_date = datetime.fromisoformat(game_date.replace('Z', '+00:00')).date()
+                            except:
+                                continue
+                        
+                        if game_date == current_date:
+                            has_game_today = True
+                            break
+                
+                if not has_game_today:
+                    continue
+                
+                # Get player's season averages
+                player_stats = getattr(player, 'stats', {})
+                season_total_key = f'{league.year}_total'
+                
+                if season_total_key in player_stats:
+                    avg_stats = player_stats[season_total_key].get('avg', {})
+                    if avg_stats:
+                        # Add projected stats for this game
+                        projected['PTS'] += float(avg_stats.get('PTS', 0))
+                        projected['REB'] += float(avg_stats.get('REB', 0))
+                        projected['AST'] += float(avg_stats.get('AST', 0))
+                        projected['STL'] += float(avg_stats.get('STL', 0))
+                        projected['BLK'] += float(avg_stats.get('BLK', 0))
+                        projected['3PM'] += float(avg_stats.get('3PM', 0))
+                        projected['TO'] += float(avg_stats.get('TO', 0))
+                        
+                        # Track FG and FT for percentages
+                        fg_made += float(avg_stats.get('FGM', 0))
+                        fg_attempted += float(avg_stats.get('FGA', 0))
+                        ft_made += float(avg_stats.get('FTM', 0))
+                        ft_attempted += float(avg_stats.get('FTA', 0))
+            
+            # Move to next day
+            current_date += timedelta(days=1)
+        
+        # Recalculate percentages
+        if fg_attempted > 0:
+            projected['FG%'] = fg_made / fg_attempted
+        if ft_attempted > 0:
+            projected['FT%'] = ft_made / ft_attempted
         
     except Exception as e:
         print(f"Error projecting stats: {e}")
+        import traceback
+        traceback.print_exc()
     
     return projected
 
