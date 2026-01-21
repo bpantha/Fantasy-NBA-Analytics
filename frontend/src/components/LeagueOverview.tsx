@@ -420,27 +420,20 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           {stats.weekly_performance.best_single_week && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Best Single Week</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.weekly_performance.best_single_week.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">⭐ Best Single Week</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.weekly_performance.best_single_week.name}
-              </button>
-              <p className="text-xl md:text-2xl font-bold mt-1">{stats.weekly_performance.best_single_week.team}</p>
+              </p>
               <p className="text-xs md:text-sm text-gray-400 mt-1">Week {stats.weekly_performance.best_single_week.week}: {stats.weekly_performance.best_single_week.teams_beaten} {stats.weekly_performance.best_single_week.teams_beaten === 1 ? 'team' : 'teams'} beaten</p>
             </div>
           )}
           
           {stats.weekly_performance.most_improved && (
             <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
-              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Improved</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.weekly_performance.most_improved!.name)}
-                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">📈 Most Improved</h3>
+              <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.weekly_performance.most_improved.name}
-              </button>
+              </p>
               <p className="text-base md:text-lg font-bold mt-1 text-green-400">
                 +{stats.weekly_performance.most_improved.improvement.toFixed(1)}
               </p>
