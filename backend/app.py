@@ -788,18 +788,23 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 continue
         
         # Find remaining scoring periods (from current through end of matchup)
-        # Only include scoring periods that are >= current and <= final
+        # Only include scoring periods that are >= current
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
-        # If no remaining periods found, the matchup might be over or we need to check future scoring periods
+        # If no remaining periods found, the matchup_ids might not be populated correctly
+        # Use fallback: assume remaining periods from current through end of week (typically 7 days)
+        # Matchups typically span about 7 scoring periods (one per day)
         if not remaining_periods:
-            # Check if there are any future scoring periods beyond the matchup
-            # Use current scoring period through the final scoring period of the season
-            remaining_periods = [sp for sp in range(current_scoring_period, league.finalScoringPeriod + 1)]
-            # But only keep ones that are within the matchup if we can determine the matchup end
-            if scoring_periods:
+            # Use next 7 scoring periods as a reasonable estimate for remaining matchup days
+            end_period = min(current_scoring_period + 7, league.finalScoringPeriod)
+            remaining_periods = list(range(current_scoring_period, end_period + 1))
+            # If we have matchup scoring periods but they're all less than current, use them anyway
+            # (this handles the case where matchup_ids might have wrong data)
+            if scoring_periods and all(sp < current_scoring_period for sp in scoring_periods):
+                # Use all future periods through the matchup end
                 matchup_end = max(scoring_periods)
-                remaining_periods = [sp for sp in remaining_periods if sp <= matchup_end]
+                if matchup_end >= current_scoring_period:
+                    remaining_periods = list(range(current_scoring_period, matchup_end + 1))
         
         # For each remaining scoring period, check which players have games
         games_found = 0
