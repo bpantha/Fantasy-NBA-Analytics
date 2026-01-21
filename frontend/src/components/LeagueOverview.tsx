@@ -117,7 +117,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               >
                 {stats.overall_performance.most_dominant.name}
               </button>
-              <p className="text-2xl font-bold mt-1">{stats.overall_performance.most_dominant.avg_teams_beaten.toFixed(1)} avg/week</p>
+              <p className="text-lg font-bold mt-1">{stats.overall_performance.most_dominant.avg_teams_beaten.toFixed(1)}</p>
+              <p className="text-xs text-gray-400 mt-1">Average teams beaten per week</p>
             </div>
           )}
           
@@ -185,6 +186,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                 {stats.activity_metrics.most_active.name}
               </button>
               <p className="text-2xl font-bold mt-1">{stats.activity_metrics.most_active.total_minutes.toFixed(0)} min</p>
+              <p className="text-xs text-gray-400 mt-1">Sum of minutes across all weeks</p>
             </div>
           )}
           
@@ -210,6 +212,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <h3 className="text-lg font-semibold mb-3">Current Win Streaks</h3>
+            <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
@@ -227,6 +230,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           
           <div>
             <h3 className="text-lg font-semibold mb-3">Longest Streaks (All-Time)</h3>
+            <p className="text-xs text-gray-400 mb-2">Longest consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
@@ -245,7 +249,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-green-400">🔥 Hot Teams (Last 4 Weeks)</h3>
+            <h3 className="text-lg font-semibold mb-3 text-green-400">🔥 Hot Teams</h3>
+            <p className="text-xs text-gray-400 mb-2">Best performance in last 4 weeks</p>
             <div className="space-y-2">
               {stats.streaks_trends.hot_teams.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
@@ -255,14 +260,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg font-bold">{team.avg.toFixed(1)} avg</span>
+                  <span className="text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
                 </div>
               ))}
             </div>
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-red-400">❄️ Cold Teams (Last 4 Weeks)</h3>
+            <h3 className="text-lg font-semibold mb-3 text-red-400">❄️ Cold Teams</h3>
+            <p className="text-xs text-gray-400 mb-2">Worst performance in last 4 weeks</p>
             <div className="space-y-2">
               {stats.streaks_trends.cold_teams.map((team, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
@@ -272,7 +278,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg font-bold">{team.avg.toFixed(1)} avg</span>
+                  <span className="text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
                 </div>
               ))}
             </div>
@@ -280,32 +286,33 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         </div>
       </section>
 
-      {/* Head-to-Head */}
+      {/* Matchup Analysis */}
       <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Head-to-Head</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h2 className="text-xl md:text-2xl font-bold mb-4">Matchup Analysis</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <h3 className="text-lg font-semibold mb-3">Most Rivalries</h3>
+            <h3 className="text-lg font-semibold mb-3 text-green-400">Best Matchups</h3>
+            <p className="text-xs text-gray-400 mb-2">Teams with 80%+ win rate vs opponent (2+ matchups)</p>
             <div className="space-y-2">
-              {stats.head_to_head.most_rivalries.map((rivalry, idx) => (
+              {stats.head_to_head.best_matchups?.map((matchup, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <button
-                      onClick={() => setSelectedTeam(rivalry.team1)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors"
+                      onClick={() => setSelectedTeam(matchup.team)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
                     >
-                      {rivalry.team1}
+                      {matchup.team}
                     </button>
                     <span className="text-gray-400">vs</span>
                     <button
-                      onClick={() => setSelectedTeam(rivalry.team2)}
+                      onClick={() => setSelectedTeam(matchup.opponent)}
                       className="text-blue-400 hover:text-blue-300 transition-colors"
                     >
-                      {rivalry.team2}
+                      {matchup.opponent}
                     </button>
                   </div>
                   <p className="text-sm text-gray-400 mt-1">
-                    {rivalry.wins}-{rivalry.losses} ({rivalry.total} matchups)
+                    {matchup.wins}-{matchup.total - matchup.wins} ({matchup.win_rate}% win rate)
                   </p>
                 </div>
               ))}
@@ -313,26 +320,92 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-3">Dominant Matchups</h3>
+            <h3 className="text-lg font-semibold mb-3 text-red-400">Worst Matchups</h3>
+            <p className="text-xs text-gray-400 mb-2">Teams with 20% or less win rate vs opponent (2+ matchups)</p>
             <div className="space-y-2">
-              {stats.head_to_head.dominant_matchups.map((matchup, idx) => (
+              {stats.head_to_head.worst_matchups?.map((matchup, idx) => (
                 <div key={idx} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <button
-                      onClick={() => setSelectedTeam(matchup.team1)}
-                      className="text-green-400 hover:text-green-300 transition-colors font-semibold"
+                      onClick={() => setSelectedTeam(matchup.team)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
                     >
-                      {matchup.team1}
+                      {matchup.team}
                     </button>
-                    <span className="text-gray-400">dominates</span>
+                    <span className="text-gray-400">vs</span>
                     <button
-                      onClick={() => setSelectedTeam(matchup.team2)}
-                      className="text-red-400 hover:text-red-300 transition-colors"
+                      onClick={() => setSelectedTeam(matchup.opponent)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors"
                     >
-                      {matchup.team2}
+                      {matchup.opponent}
                     </button>
                   </div>
-                  <p className="text-sm text-gray-400 mt-1">{matchup.win_rate}% win rate</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {matchup.wins}-{matchup.total - matchup.wins} ({matchup.win_rate}% win rate)
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Category Specialists */}
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold mb-3">Category Specialists</h3>
+          <p className="text-xs text-gray-400 mb-3">Teams with highest win rate in each category</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {categories.map(cat => {
+              const specialist = stats.head_to_head.category_specialists?.[cat]
+              if (!specialist) return null
+              return (
+                <div key={cat} className="bg-gray-700 p-3 rounded-lg">
+                  <h4 className="text-xs font-semibold text-gray-300 mb-1">{cat}</h4>
+                  <button
+                    onClick={() => setSelectedTeam(specialist.team)}
+                    className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    {specialist.team}
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1">{specialist.win_rate}% win rate</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        
+        {/* Weekly Consistency */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Most Consistent Weekly</h3>
+            <p className="text-xs text-gray-400 mb-2">Lowest variance in teams beaten per week</p>
+            <div className="space-y-2">
+              {stats.head_to_head.most_consistent_weekly?.map((team, idx) => (
+                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                  <button
+                    onClick={() => setSelectedTeam(team.name)}
+                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                  >
+                    {team.name}
+                  </button>
+                  <span className="text-sm text-gray-400">{team.avg.toFixed(1)} avg</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Least Consistent Weekly</h3>
+            <p className="text-xs text-gray-400 mb-2">Highest variance in teams beaten per week</p>
+            <div className="space-y-2">
+              {stats.head_to_head.least_consistent_weekly?.map((team, idx) => (
+                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                  <button
+                    onClick={() => setSelectedTeam(team.name)}
+                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                  >
+                    {team.name}
+                  </button>
+                  <span className="text-sm text-gray-400">{team.avg.toFixed(1)} avg</span>
                 </div>
               ))}
             </div>
@@ -376,12 +449,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               >
                 {stats.weekly_performance.most_improved.name}
               </button>
-              <p className="text-2xl font-bold mt-1 text-green-400">
+              <p className="text-lg font-bold mt-1 text-green-400">
                 +{stats.weekly_performance.most_improved.improvement.toFixed(1)}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {stats.weekly_performance.most_improved.early_avg} → {stats.weekly_performance.most_improved.recent_avg} avg
-              </p>
+              {stats.weekly_performance.most_improved.description && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {stats.weekly_performance.most_improved.description}
+                </p>
+              )}
             </div>
           )}
         </div>

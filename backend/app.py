@@ -155,16 +155,24 @@ def get_league_stats():
         'weeks_played': 0,
         'weekly_teams_beaten': [],
         'category_wins': defaultdict(int),
+        'category_wins_list': defaultdict(list),  # For std dev calculation
         'matchup_history': defaultdict(lambda: {'wins': 0, 'losses': 0, 'total': 0}),
         'best_week': {'week': 0, 'teams_beaten': 0},
+        'scheduled_opponent_wins': [],  # Track wins vs scheduled opponent (5-4-0 or better)
+        'scheduled_opponent_weeks': [],  # Track which weeks
         'current_streak': 0,
         'longest_streak': 0,
-        'recent_performance': []
+        'recent_performance': [],
+        'opponent_matchups': defaultdict(list)  # Track best/worst matchups
     })
+    
+    # Get current week from league summary to exclude it from streaks
+    current_week = league_summary.get('current_matchup_period', len(all_weeks_data))
     
     # Process each week
     for week_idx, week_data in enumerate(all_weeks_data):
         week_num = week_data.get('matchup_period', week_idx + 1)
+        is_current_week = (week_num == current_week)
         
         for team in week_data.get('teams', []):
             team_name = team.get('name', '')
@@ -174,7 +182,7 @@ def get_league_stats():
             stats = team_stats[team_name]
             stats['weeks_played'] += 1
             
-            # Teams beaten this week
+            # Teams beaten this week (cross-matchup comparison)
             teams_beaten_this_week = 0
             for opponent, details in team.get('matchup_details', {}).items():
                 if details.get('won', 0) >= 5:
@@ -189,33 +197,69 @@ def get_league_stats():
             stats['total_teams_beaten'] += teams_beaten_this_week
             stats['weekly_teams_beaten'].append(teams_beaten_this_week)
             
+            # Track scheduled opponent win (5-4-0 or better) - exclude current week
+            opponent_name = team.get('opponent_name', '')
+            if opponent_name and not is_current_week:
+                opponent_details = team.get('matchup_details', {}).get(opponent_name, {})
+                if opponent_details.get('won', 0) >= 5:
+                    stats['scheduled_opponent_wins'].append(1)
+                    stats['scheduled_opponent_weeks'].append(week_num)
+                else:
+                    stats['scheduled_opponent_wins'].append(0)
+                    stats['scheduled_opponent_weeks'].append(week_num)
+                
+                # Track opponent matchup record
+                stats['opponent_matchups'][opponent_name].append({
+                    'week': week_num,
+                    'won': opponent_details.get('won', 0),
+                    'lost': opponent_details.get('lost', 0),
+                    'result': 'win' if opponent_details.get('won', 0) >= 5 else 'loss'
+                })
+            
             # Track best week
             if teams_beaten_this_week > stats['best_week']['teams_beaten']:
                 stats['best_week'] = {'week': week_num, 'teams_beaten': teams_beaten_this_week}
             
-            # Category wins
+            # Category wins (for counting and std dev)
             for opponent, details in team.get('matchup_details', {}).items():
                 for cat in details.get('won_cats', []):
                     stats['category_wins'][cat] += 1
+                    stats['category_wins_list'][cat].append(1)
+                # Also track losses for std dev
+                for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']:
+                    if cat not in details.get('won_cats', []) and cat not in details.get('lost_cats', []):
+                        # Tied or not compared
+                        pass
+                    elif cat in details.get('lost_cats', []):
+                        stats['category_wins_list'][cat].append(0)
             
             # Minutes
             stats['total_minutes'] += team.get('minutes_played', 0)
             
-            # Recent performance (last 4 weeks)
-            if week_idx >= len(all_weeks_data) - 4:
+            # Recent performance (last 4 weeks, excluding current)
+            if week_idx >= len(all_weeks_data) - 4 and not is_current_week:
                 stats['recent_performance'].append(teams_beaten_this_week)
     
-    # Calculate streaks
+    # Calculate streaks (based on scheduled opponent wins, excluding current week)
     for team_name, stats in team_stats.items():
+        # Current streak (from most recent backwards, excluding current week)
         streak = 0
-        max_streak = 0
-        for beaten in reversed(stats['weekly_teams_beaten']):
-            if beaten >= 5:
+        for win in reversed(stats['scheduled_opponent_wins']):
+            if win == 1:
                 streak += 1
-                max_streak = max(max_streak, streak)
             else:
-                streak = 0
+                break
         stats['current_streak'] = streak
+        
+        # Longest streak (all-time)
+        max_streak = 0
+        current_run = 0
+        for win in stats['scheduled_opponent_wins']:
+            if win == 1:
+                current_run += 1
+                max_streak = max(max_streak, current_run)
+            else:
+                current_run = 0
         stats['longest_streak'] = max_streak
     
     # Calculate averages and metrics
@@ -274,16 +318,23 @@ def get_league_stats():
         if best_team:
             category_leaders[cat] = {'team': best_team, 'wins': best_count}
     
-    # Most balanced
+    # Most balanced (using standard deviation - lower is more balanced)
     balanced_scores = {}
     for team_name, stats in team_stats.items():
         if stats['weeks_played'] > 0:
-            categories_won = len([c for c in stats['category_wins'].values() if c > 0])
-            balanced_scores[team_name] = categories_won
+            # Calculate std dev of category wins
+            category_win_counts = list(stats['category_wins'].values())
+            if len(category_win_counts) > 1:
+                mean = sum(category_win_counts) / len(category_win_counts)
+                variance = sum((x - mean) ** 2 for x in category_win_counts) / len(category_win_counts)
+                std_dev = variance ** 0.5
+                balanced_scores[team_name] = std_dev
+            else:
+                balanced_scores[team_name] = 0
     
     results['category_performance'] = {
         'category_leaders': category_leaders,
-        'most_balanced': max(balanced_scores.items(), key=lambda x: x[1])[0] if balanced_scores else None
+        'most_balanced': min(balanced_scores.items(), key=lambda x: x[1])[0] if balanced_scores else None
     }
     
     # Activity Metrics
@@ -315,31 +366,71 @@ def get_league_stats():
         'cold_teams': sorted(cold_teams, key=lambda x: x['avg'])[:3]
     }
     
-    # Head-to-Head
-    rivalries = []
-    dominant_matchups = []
+    # Best/Worst Matchups
+    best_matchups = []
+    worst_matchups = []
     for team_name, stats in team_stats.items():
-        for opponent, history in stats['matchup_history'].items():
-            if history['total'] >= 3:
-                win_rate = history['wins'] / history['total'] if history['total'] > 0 else 0
-                if 0.3 <= win_rate <= 0.7:
-                    rivalries.append({
-                        'team1': team_name,
-                        'team2': opponent,
-                        'wins': history['wins'],
-                        'losses': history['losses'],
-                        'total': history['total']
+        for opponent, matchups in stats['opponent_matchups'].items():
+            if len(matchups) >= 2:  # At least 2 matchups
+                wins = sum(1 for m in matchups if m['result'] == 'win')
+                total = len(matchups)
+                win_rate = wins / total if total > 0 else 0
+                
+                if win_rate >= 0.8:  # Best matchup (80%+ win rate)
+                    best_matchups.append({
+                        'team': team_name,
+                        'opponent': opponent,
+                        'wins': wins,
+                        'total': total,
+                        'win_rate': round(win_rate * 100, 1)
                     })
-                elif win_rate >= 0.8:
-                    dominant_matchups.append({
-                        'team1': team_name,
-                        'team2': opponent,
+                elif win_rate <= 0.2:  # Worst matchup (20% or less win rate)
+                    worst_matchups.append({
+                        'team': team_name,
+                        'opponent': opponent,
+                        'wins': wins,
+                        'total': total,
                         'win_rate': round(win_rate * 100, 1)
                     })
     
+    # Category Specialists (teams that dominate specific categories)
+    category_specialists = {}
+    for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']:
+        # Find team with highest win rate in this category
+        best_team = None
+        best_rate = 0
+        for team_name, stats in team_stats.items():
+            if len(stats['category_wins_list'][cat]) > 0:
+                wins = sum(stats['category_wins_list'][cat])
+                total = len(stats['category_wins_list'][cat])
+                rate = wins / total if total > 0 else 0
+                if rate > best_rate:
+                    best_rate = rate
+                    best_team = team_name
+        if best_team:
+            category_specialists[cat] = {
+                'team': best_team,
+                'win_rate': round(best_rate * 100, 1)
+            }
+    
+    # Weekly Variance (most/least consistent teams in weekly performance)
+    weekly_variance_teams = []
+    for team_name, stats in team_stats.items():
+        if len(stats['weekly_teams_beaten']) > 1:
+            mean = sum(stats['weekly_teams_beaten']) / len(stats['weekly_teams_beaten'])
+            variance = sum((x - mean) ** 2 for x in stats['weekly_teams_beaten']) / len(stats['weekly_teams_beaten'])
+            weekly_variance_teams.append({
+                'name': team_name,
+                'variance': round(variance, 2),
+                'avg': round(mean, 2)
+            })
+    
     results['head_to_head'] = {
-        'most_rivalries': rivalries[:5],
-        'dominant_matchups': dominant_matchups[:5]
+        'best_matchups': sorted(best_matchups, key=lambda x: x['win_rate'], reverse=True)[:5],
+        'worst_matchups': sorted(worst_matchups, key=lambda x: x['win_rate'])[:5],
+        'category_specialists': category_specialists,
+        'most_consistent_weekly': sorted(weekly_variance_teams, key=lambda x: x['variance'])[:3],
+        'least_consistent_weekly': sorted(weekly_variance_teams, key=lambda x: x['variance'], reverse=True)[:3]
     }
     
     # Weekly Performance
@@ -367,7 +458,11 @@ def get_league_stats():
             })
     
     if improved_teams:
-        results['weekly_performance']['most_improved'] = max(improved_teams, key=lambda x: x['improvement'])
+        most_improved = max(improved_teams, key=lambda x: x['improvement'])
+        results['weekly_performance']['most_improved'] = {
+            **most_improved,
+            'description': f"Improved from {most_improved['early_avg']} to {most_improved['recent_avg']} teams beaten per week (+{most_improved['improvement']} improvement)"
+        }
     
     return jsonify(results)
 

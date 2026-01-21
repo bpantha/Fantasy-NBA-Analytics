@@ -287,24 +287,40 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                   <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
                   <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
                   <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Minutes</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week Avg</th>
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.map((entry, index) => (
-                  <tr 
-                    key={entry.team_name} 
-                    className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
-                    onClick={() => setSelectedTeam(entry.team_name)}
-                  >
-                    <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
-                    <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
-                      {entry.team_name}
-                    </td>
-                    <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
-                  </tr>
-                ))}
+                {leaderboard.map((entry, index) => {
+                  const teamData = weekData?.teams.find(t => t.name === entry.team_name)
+                  const minutes = teamData?.minutes_played || 0
+                  const vsAvg = teamData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
+                  return (
+                    <tr 
+                      key={entry.team_name} 
+                      className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
+                      onClick={() => setSelectedTeam(entry.team_name)}
+                    >
+                      <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
+                        {entry.team_name}
+                      </td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
+                      <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
+          </div>
+          <div className="mt-3 p-3 bg-gray-700 rounded-lg">
+            <p className="text-xs md:text-sm text-gray-300">
+              <span className="font-semibold">Week {selectedWeek} League Average:</span> {weekData?.league_avg_minutes.toFixed(1)} minutes
+            </p>
           </div>
           <p className="text-xs md:text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
         </div>
