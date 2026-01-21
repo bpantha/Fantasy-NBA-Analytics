@@ -119,6 +119,258 @@ def compare_teams(team1, team2):
         'week': latest_week
     })
 
+@app.route('/api/league/stats', methods=['GET'])
+def get_league_stats():
+    """Get aggregated league statistics across all weeks"""
+    from collections import defaultdict
+    
+    # Load all week data
+    all_weeks_data = []
+    weeks = []
+    for file in sorted(DATA_DIR.glob('week*.json')):
+        week_num = file.stem.replace('week', '')
+        try:
+            week_num = int(week_num)
+            weeks.append(week_num)
+            with open(file, 'r') as f:
+                all_weeks_data.append(json.load(f))
+        except:
+            continue
+    
+    if not all_weeks_data:
+        return jsonify({'error': 'No week data available'}), 404
+    
+    # Load league summary for overall wins
+    summary_path = DATA_DIR / 'league_summary.json'
+    league_summary = {}
+    if summary_path.exists():
+        with open(summary_path, 'r') as f:
+            league_summary = json.load(f)
+    
+    # Aggregate data
+    team_stats = defaultdict(lambda: {
+        'total_teams_beaten': 0,
+        'total_category_wins': 0,
+        'total_minutes': 0,
+        'weeks_played': 0,
+        'weekly_teams_beaten': [],
+        'category_wins': defaultdict(int),
+        'matchup_history': defaultdict(lambda: {'wins': 0, 'losses': 0, 'total': 0}),
+        'best_week': {'week': 0, 'teams_beaten': 0},
+        'current_streak': 0,
+        'longest_streak': 0,
+        'recent_performance': []
+    })
+    
+    # Process each week
+    for week_idx, week_data in enumerate(all_weeks_data):
+        week_num = week_data.get('matchup_period', week_idx + 1)
+        
+        for team in week_data.get('teams', []):
+            team_name = team.get('name', '')
+            if not team_name:
+                continue
+            
+            stats = team_stats[team_name]
+            stats['weeks_played'] += 1
+            
+            # Teams beaten this week
+            teams_beaten_this_week = 0
+            for opponent, details in team.get('matchup_details', {}).items():
+                if details.get('won', 0) >= 5:
+                    teams_beaten_this_week += 1
+                    stats['matchup_history'][opponent]['wins'] += 1
+                    stats['matchup_history'][opponent]['total'] += 1
+                else:
+                    stats['matchup_history'][opponent]['total'] += 1
+                    if details.get('lost', 0) >= 5:
+                        stats['matchup_history'][opponent]['losses'] += 1
+            
+            stats['total_teams_beaten'] += teams_beaten_this_week
+            stats['weekly_teams_beaten'].append(teams_beaten_this_week)
+            
+            # Track best week
+            if teams_beaten_this_week > stats['best_week']['teams_beaten']:
+                stats['best_week'] = {'week': week_num, 'teams_beaten': teams_beaten_this_week}
+            
+            # Category wins
+            for opponent, details in team.get('matchup_details', {}).items():
+                for cat in details.get('won_cats', []):
+                    stats['category_wins'][cat] += 1
+            
+            # Minutes
+            stats['total_minutes'] += team.get('minutes_played', 0)
+            
+            # Recent performance (last 4 weeks)
+            if week_idx >= len(all_weeks_data) - 4:
+                stats['recent_performance'].append(teams_beaten_this_week)
+    
+    # Calculate streaks
+    for team_name, stats in team_stats.items():
+        streak = 0
+        max_streak = 0
+        for beaten in reversed(stats['weekly_teams_beaten']):
+            if beaten >= 5:
+                streak += 1
+                max_streak = max(max_streak, streak)
+            else:
+                streak = 0
+        stats['current_streak'] = streak
+        stats['longest_streak'] = max_streak
+    
+    # Calculate averages and metrics
+    teams_list = []
+    for team_name, stats in team_stats.items():
+        avg_teams_beaten = stats['total_teams_beaten'] / stats['weeks_played'] if stats['weeks_played'] > 0 else 0
+        variance = 0
+        if len(stats['weekly_teams_beaten']) > 1:
+            mean = avg_teams_beaten
+            variance = sum((x - mean) ** 2 for x in stats['weekly_teams_beaten']) / len(stats['weekly_teams_beaten'])
+        
+        # Get overall wins from league summary
+        overall_wins = 0
+        win_pct = 0
+        for team_summary in league_summary.get('teams', []):
+            if team_summary.get('name') == team_name:
+                overall_wins = team_summary.get('wins', 0)
+                win_pct = team_summary.get('win_percentage', 0)
+                break
+        
+        teams_list.append({
+            'name': team_name,
+            'total_wins': overall_wins,
+            'win_percentage': win_pct,
+            'avg_teams_beaten': round(avg_teams_beaten, 2),
+            'variance': round(variance, 2),
+            'total_teams_beaten': stats['total_teams_beaten'],
+            'total_minutes': round(stats['total_minutes'], 1),
+            'efficiency': round(overall_wins / stats['total_minutes'] * 1000, 3) if stats['total_minutes'] > 0 else 0
+        })
+    
+    # Sort and find leaders
+    results = {
+        'overall_performance': {
+            'total_wins_leader': max(teams_list, key=lambda x: x['total_wins']) if teams_list else None,
+            'win_pct_leader': max(teams_list, key=lambda x: x['win_percentage']) if teams_list else None,
+            'most_dominant': max(teams_list, key=lambda x: x['avg_teams_beaten']) if teams_list else None,
+            'most_consistent': min(teams_list, key=lambda x: x['variance']) if teams_list else None
+        },
+        'category_performance': {},
+        'activity_metrics': {},
+        'streaks_trends': {},
+        'head_to_head': {},
+        'weekly_performance': {}
+    }
+    
+    # Category Performance
+    category_leaders = {}
+    for cat in ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']:
+        best_team = None
+        best_count = 0
+        for team_name, stats in team_stats.items():
+            if stats['category_wins'][cat] > best_count:
+                best_count = stats['category_wins'][cat]
+                best_team = team_name
+        if best_team:
+            category_leaders[cat] = {'team': best_team, 'wins': best_count}
+    
+    # Most balanced
+    balanced_scores = {}
+    for team_name, stats in team_stats.items():
+        if stats['weeks_played'] > 0:
+            categories_won = len([c for c in stats['category_wins'].values() if c > 0])
+            balanced_scores[team_name] = categories_won
+    
+    results['category_performance'] = {
+        'category_leaders': category_leaders,
+        'most_balanced': max(balanced_scores.items(), key=lambda x: x[1])[0] if balanced_scores else None
+    }
+    
+    # Activity Metrics
+    results['activity_metrics'] = {
+        'most_active': max(teams_list, key=lambda x: x['total_minutes']) if teams_list else None,
+        'minutes_leader': max(teams_list, key=lambda x: x['total_minutes']) if teams_list else None,
+        'efficiency_leader': max(teams_list, key=lambda x: x['efficiency']) if teams_list else None
+    }
+    
+    # Streaks & Trends
+    hot_teams = []
+    cold_teams = []
+    for team_name, stats in team_stats.items():
+        if len(stats['recent_performance']) >= 3:
+            recent_avg = sum(stats['recent_performance']) / len(stats['recent_performance'])
+            hot_teams.append({'name': team_name, 'avg': recent_avg})
+            cold_teams.append({'name': team_name, 'avg': recent_avg})
+    
+    results['streaks_trends'] = {
+        'current_streak_leaders': sorted(
+            [{'name': name, 'streak': s['current_streak']} for name, s in team_stats.items()],
+            key=lambda x: x['streak'], reverse=True
+        )[:5],
+        'longest_streak_leaders': sorted(
+            [{'name': name, 'streak': s['longest_streak']} for name, s in team_stats.items()],
+            key=lambda x: x['streak'], reverse=True
+        )[:5],
+        'hot_teams': sorted(hot_teams, key=lambda x: x['avg'], reverse=True)[:3],
+        'cold_teams': sorted(cold_teams, key=lambda x: x['avg'])[:3]
+    }
+    
+    # Head-to-Head
+    rivalries = []
+    dominant_matchups = []
+    for team_name, stats in team_stats.items():
+        for opponent, history in stats['matchup_history'].items():
+            if history['total'] >= 3:
+                win_rate = history['wins'] / history['total'] if history['total'] > 0 else 0
+                if 0.3 <= win_rate <= 0.7:
+                    rivalries.append({
+                        'team1': team_name,
+                        'team2': opponent,
+                        'wins': history['wins'],
+                        'losses': history['losses'],
+                        'total': history['total']
+                    })
+                elif win_rate >= 0.8:
+                    dominant_matchups.append({
+                        'team1': team_name,
+                        'team2': opponent,
+                        'win_rate': round(win_rate * 100, 1)
+                    })
+    
+    results['head_to_head'] = {
+        'most_rivalries': rivalries[:5],
+        'dominant_matchups': dominant_matchups[:5]
+    }
+    
+    # Weekly Performance
+    results['weekly_performance'] = {
+        'best_single_week': max(
+            [{'name': name, 'week': s['best_week']['week'], 'teams_beaten': s['best_week']['teams_beaten']} 
+             for name, s in team_stats.items()],
+            key=lambda x: x['teams_beaten']
+        ) if team_stats else None,
+        'most_improved': None
+    }
+    
+    # Most improved
+    improved_teams = []
+    for team_name, stats in team_stats.items():
+        if len(stats['weekly_teams_beaten']) >= 8:
+            early_avg = sum(stats['weekly_teams_beaten'][:4]) / 4
+            recent_avg = sum(stats['weekly_teams_beaten'][-4:]) / 4
+            improvement = recent_avg - early_avg
+            improved_teams.append({
+                'name': team_name,
+                'improvement': round(improvement, 2),
+                'early_avg': round(early_avg, 2),
+                'recent_avg': round(recent_avg, 2)
+            })
+    
+    if improved_teams:
+        results['weekly_performance']['most_improved'] = max(improved_teams, key=lambda x: x['improvement'])
+    
+    return jsonify(results)
+
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot():
     """Handle chatbot queries using Hugging Face LLM"""
