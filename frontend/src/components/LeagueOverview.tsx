@@ -68,6 +68,17 @@ interface LeagueStats {
       description?: string
     } | null
   }
+  teams_list?: Array<{
+    name: string
+    total_wins: number
+    win_percentage: number
+    avg_teams_beaten: number
+    variance: number
+    total_teams_beaten: number
+    total_minutes: number
+    efficiency: number
+    logo_url?: string
+  }>
 }
 
 export default function LeagueOverview({ apiBase }: { apiBase: string }) {
@@ -112,67 +123,60 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Overall Performance */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Overall Performance</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.overall_performance.total_wins_leader && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Total Wins Leader</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.total_wins_leader.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {stats.overall_performance.total_wins_leader.name}
-              </button>
-              <p className="text-2xl font-bold mt-1">{stats.overall_performance.total_wins_leader.total_wins} wins</p>
-            </div>
-          )}
-          
-          {stats.overall_performance.win_pct_leader && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Win % Leader</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.win_pct_leader.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {stats.overall_performance.win_pct_leader.name}
-              </button>
-              <p className="text-2xl font-bold mt-1">{stats.overall_performance.win_pct_leader.win_percentage}%</p>
-            </div>
-          )}
-          
-          {stats.overall_performance.most_dominant && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Most Dominant</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.most_dominant.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {stats.overall_performance.most_dominant.name}
-              </button>
-              <p className="text-lg font-bold mt-1">{stats.overall_performance.most_dominant.avg_teams_beaten.toFixed(1)}</p>
-              <p className="text-xs text-gray-400 mt-1">Average teams beaten per week</p>
-            </div>
-          )}
-          
-          {stats.overall_performance.most_consistent && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Most Consistent</h3>
-              <button
-                onClick={() => setSelectedTeam(stats.overall_performance.most_consistent.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {stats.overall_performance.most_consistent.name}
-              </button>
-              <p className="text-sm text-gray-400 mt-1">Low variance</p>
-            </div>
-          )}
-        </div>
-      </section>
+      {/* League Standings Table */}
+      {stats.teams_list && stats.teams_list.length > 0 && (
+        <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">League Standings</h2>
+          <div className="min-w-full">
+            <table className="w-full text-sm md:text-base">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Avg Wins vs Opp</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Win %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.teams_list
+                  .sort((a, b) => b.avg_teams_beaten - a.avg_teams_beaten)
+                  .map((team, index) => (
+                    <tr 
+                      key={team.name} 
+                      className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
+                      onClick={() => setSelectedTeam(team.name)}
+                    >
+                      <td className="px-2 md:px-4 py-2 md:py-3">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          {team.logo_url && (
+                            <img 
+                              src={team.logo_url} 
+                              alt={team.name}
+                              className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          )}
+                          <span className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                            {team.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.avg_teams_beaten.toFixed(1)}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.total_wins}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.win_percentage.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs md:text-sm text-gray-400 mt-3">Click on a team name to view details</p>
+        </section>
+      )}
 
-      {/* Category Performance */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
+      {/* Category Dominance */}
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <h2 className="text-xl md:text-2xl font-bold mb-4">Category Dominance</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {categories.map(cat => {
@@ -180,24 +184,24 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             if (!leader) return null
             return (
               <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => setSelectedCategory(cat)}>
-                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2">{cat}</h3>
+                <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{cat}</h3>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setSelectedTeam(leader.team)
                   }}
-                  className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block"
+                  className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block w-full text-center"
                 >
                   {leader.team}
                 </button>
-                <p className="text-lg md:text-xl font-bold mt-1">{leader.wins} wins</p>
-                <p className="text-xs text-gray-400 mt-1">Click to compare</p>
+                <p className="text-lg md:text-xl font-bold mt-1 text-center">{leader.wins} wins</p>
+                <p className="text-xs text-gray-400 mt-1 text-center">Click to compare</p>
               </div>
             )
           })}
         </div>
         {stats.category_performance.most_balanced && (
-          <div className="mt-4 p-4 bg-gray-700 rounded-lg">
+          <div className="mt-4 p-3 md:p-4 bg-gray-700 rounded-lg">
             <h3 className="text-sm text-gray-400 mb-1">Most Balanced Team</h3>
             <button
               onClick={() => setSelectedTeam(stats.category_performance.most_balanced!)}
@@ -210,34 +214,93 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         )}
       </section>
 
+      {/* Overall Performance */}
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+        <h2 className="text-xl md:text-2xl font-bold mb-4">Overall Performance</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {stats.overall_performance.total_wins_leader && (
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Total Wins Leader</h3>
+              <button
+                onClick={() => setSelectedTeam(stats.overall_performance.total_wins_leader.name)}
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {stats.overall_performance.total_wins_leader.name}
+              </button>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.overall_performance.total_wins_leader.total_wins} wins</p>
+            </div>
+          )}
+          
+          {stats.overall_performance.win_pct_leader && (
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Win % Leader</h3>
+              <button
+                onClick={() => setSelectedTeam(stats.overall_performance.win_pct_leader.name)}
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {stats.overall_performance.win_pct_leader.name}
+              </button>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.overall_performance.win_pct_leader.win_percentage}%</p>
+            </div>
+          )}
+          
+          {stats.overall_performance.most_dominant && (
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Dominant</h3>
+              <button
+                onClick={() => setSelectedTeam(stats.overall_performance.most_dominant.name)}
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {stats.overall_performance.most_dominant.name}
+              </button>
+              <p className="text-base md:text-lg font-bold mt-1">{stats.overall_performance.most_dominant.avg_teams_beaten.toFixed(1)}</p>
+              <p className="text-xs text-gray-400 mt-1">Average teams beaten per week</p>
+            </div>
+          )}
+          
+          {stats.overall_performance.most_consistent && (
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Consistent</h3>
+              <button
+                onClick={() => setSelectedTeam(stats.overall_performance.most_consistent.name)}
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {stats.overall_performance.most_consistent.name}
+              </button>
+              <p className="text-xs md:text-sm text-gray-400 mt-1">Low variance</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Activity Metrics */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <h2 className="text-xl md:text-2xl font-bold mb-4">Activity Metrics</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           {stats.activity_metrics.most_active && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Most Active</h3>
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Active</h3>
               <button
                 onClick={() => setSelectedTeam(stats.activity_metrics.most_active.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
                 {stats.activity_metrics.most_active.name}
               </button>
-              <p className="text-2xl font-bold mt-1">{stats.activity_metrics.most_active.total_minutes.toFixed(0)} min</p>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.most_active.total_minutes.toFixed(0)} min</p>
               <p className="text-xs text-gray-400 mt-1">Sum of minutes across all weeks</p>
             </div>
           )}
           
           {stats.activity_metrics.efficiency_leader && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Efficiency Leader</h3>
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Efficiency Leader</h3>
               <button
                 onClick={() => setSelectedTeam(stats.activity_metrics.efficiency_leader.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
                 {stats.activity_metrics.efficiency_leader.name}
               </button>
-              <p className="text-2xl font-bold mt-1">{stats.activity_metrics.efficiency_leader.efficiency.toFixed(2)}</p>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.activity_metrics.efficiency_leader.efficiency.toFixed(2)}</p>
               <p className="text-xs text-gray-400 mt-1">wins per 1000 min</p>
             </div>
           )}
@@ -245,78 +308,78 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       </section>
 
       {/* Streaks & Trends */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <h2 className="text-xl md:text-2xl font-bold mb-4">Streaks & Trends</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div>
-            <h3 className="text-lg font-semibold mb-3">Current Win Streaks</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Current Win Streaks</h3>
             <p className="text-xs text-gray-400 mb-2">Consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.current_streak_leaders.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                   <button
                     onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
                   >
                     {team.name}
                   </button>
-                  <span className="text-xl font-bold">{team.streak} weeks</span>
+                  <span className="text-lg md:text-xl font-bold">{team.streak} weeks</span>
                 </div>
               ))}
             </div>
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-3">Longest Streaks (All-Time)</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Longest Streaks (All-Time)</h3>
             <p className="text-xs text-gray-400 mb-2">Longest consecutive weeks beating scheduled opponent 5-4-0 or better</p>
             <div className="space-y-2">
               {stats.streaks_trends.longest_streak_leaders.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                   <button
                     onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
                   >
                     {team.name}
                   </button>
-                  <span className="text-xl font-bold">{team.streak} weeks</span>
+                  <span className="text-lg md:text-xl font-bold">{team.streak} weeks</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mt-3 md:mt-4">
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-green-400">🔥 Hot Teams</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-green-400">🔥 Hot Teams</h3>
             <p className="text-xs text-gray-400 mb-2">Best performance in last 4 weeks</p>
             <div className="space-y-2">
               {stats.streaks_trends.hot_teams.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                   <button
                     onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
+                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
                 </div>
               ))}
             </div>
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-red-400">❄️ Cold Teams</h3>
+            <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-red-400">❄️ Cold Teams</h3>
             <p className="text-xs text-gray-400 mb-2">Worst performance in last 4 weeks</p>
             <div className="space-y-2">
               {stats.streaks_trends.cold_teams.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
                   <button
                     onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                    className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
+                  <span className="text-sm md:text-lg font-bold">{team.avg.toFixed(1)} teams beaten on average</span>
                 </div>
               ))}
             </div>
@@ -324,170 +387,88 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         </div>
       </section>
 
-      {/* Matchup Analysis */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Matchup Analysis</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold mb-3 text-green-400">Best Matchups</h3>
-            <p className="text-xs text-gray-400 mb-2">Teams with 80%+ win rate vs opponent (2+ matchups)</p>
-            <div className="space-y-2">
-              {stats.head_to_head.best_matchups?.map((matchup, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <button
-                      onClick={() => setSelectedTeam(matchup.team)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                    >
-                      {matchup.team}
-                    </button>
-                    <span className="text-gray-400">vs</span>
-                    <button
-                      onClick={() => setSelectedTeam(matchup.opponent)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors"
-                    >
-                      {matchup.opponent}
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {matchup.wins}-{matchup.total - matchup.wins} ({matchup.win_rate}% win rate)
-                  </p>
-                </div>
-              ))}
+      {/* Weekly Consistency */}
+      {stats.head_to_head.most_consistent_weekly && stats.head_to_head.most_consistent_weekly.length > 0 && (
+        <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">Weekly Consistency</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div>
+              <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Most Consistent Weekly</h3>
+              <p className="text-xs text-gray-400 mb-2">Lowest variance in teams beaten per week (avg = average teams beaten per week)</p>
+              <div className="space-y-2">
+                {stats.head_to_head.most_consistent_weekly
+                  .sort((a, b) => a.variance - b.variance)
+                  .map((team, idx) => (
+                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
+                      <button
+                        onClick={() => setSelectedTeam(team.name)}
+                        className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                      >
+                        {team.name}
+                      </button>
+                      <div className="text-right">
+                        <span className="text-sm md:text-base font-bold">{team.avg.toFixed(1)} avg</span>
+                        <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-base md:text-lg font-semibold mb-2 md:mb-3">Least Consistent Weekly</h3>
+              <p className="text-xs text-gray-400 mb-2">Highest variance in teams beaten per week (avg = average teams beaten per week)</p>
+              <div className="space-y-2">
+                {stats.head_to_head.least_consistent_weekly
+                  .sort((a, b) => b.variance - a.variance)
+                  .map((team, idx) => (
+                    <div key={idx} className="bg-gray-700 p-2 md:p-3 rounded-lg flex justify-between items-center">
+                      <button
+                        onClick={() => setSelectedTeam(team.name)}
+                        className="text-sm md:text-base text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                      >
+                        {team.name}
+                      </button>
+                      <div className="text-right">
+                        <span className="text-sm md:text-base font-bold">{team.avg.toFixed(1)} avg</span>
+                        <span className="text-xs text-gray-400 ml-2">({team.variance.toFixed(2)} var)</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold mb-3 text-red-400">Worst Matchups</h3>
-            <p className="text-xs text-gray-400 mb-2">Teams with 20% or less win rate vs opponent (2+ matchups)</p>
-            <div className="space-y-2">
-              {stats.head_to_head.worst_matchups?.map((matchup, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <button
-                      onClick={() => setSelectedTeam(matchup.team)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                    >
-                      {matchup.team}
-                    </button>
-                    <span className="text-gray-400">vs</span>
-                    <button
-                      onClick={() => setSelectedTeam(matchup.opponent)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors"
-                    >
-                      {matchup.opponent}
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {matchup.wins}-{matchup.total - matchup.wins} ({matchup.win_rate}% win rate)
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Category Specialists */}
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-3">Category Specialists</h3>
-          <p className="text-xs text-gray-400 mb-3">Teams with highest win rate in each category</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {categories.map(cat => {
-              const specialist = stats.head_to_head.category_specialists?.[cat]
-              if (!specialist) return null
-              return (
-                <div key={cat} className="bg-gray-700 p-3 rounded-lg">
-                  <h4 className="text-xs font-semibold text-gray-300 mb-1">{cat}</h4>
-                  <button
-                    onClick={() => setSelectedTeam(specialist.team)}
-                    className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    {specialist.team}
-                  </button>
-                  <p className="text-xs text-gray-400 mt-1">{specialist.win_rate}% win rate</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        
-        {/* Weekly Consistency */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Most Consistent Weekly</h3>
-            <p className="text-xs text-gray-400 mb-2">Lowest variance in teams beaten per week</p>
-            <div className="space-y-2">
-              {stats.head_to_head.most_consistent_weekly?.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
-                    {team.name}
-                  </button>
-                  <span className="text-sm text-gray-400">{team.avg.toFixed(1)} avg</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Least Consistent Weekly</h3>
-            <p className="text-xs text-gray-400 mb-2">Highest variance in teams beaten per week</p>
-            <div className="space-y-2">
-              {stats.head_to_head.least_consistent_weekly?.map((team, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                  <button
-                    onClick={() => setSelectedTeam(team.name)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
-                    {team.name}
-                  </button>
-                  <span className="text-sm text-gray-400">{team.avg.toFixed(1)} avg</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Weekly Performance */}
-      <section className="bg-gray-800 p-4 md:p-6 rounded-lg">
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <h2 className="text-xl md:text-2xl font-bold mb-4">Weekly Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           {stats.weekly_performance.best_single_week && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Best Single Week</h3>
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Best Single Week</h3>
               <button
-                onClick={() => setSelectedTeam(stats.weekly_performance.best_single_week.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                onClick={() => setSelectedWeek(stats.weekly_performance.best_single_week.week)}
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
-                {stats.weekly_performance.best_single_week.name}
+                Week {stats.weekly_performance.best_single_week.week}
               </button>
-              <div className="mt-2">
-                <button
-                  onClick={() => setSelectedWeek(stats.weekly_performance.best_single_week.week)}
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  Week {stats.weekly_performance.best_single_week.week}
-                </button>
-                <p className="text-2xl font-bold mt-1">
-                  {stats.weekly_performance.best_single_week.teams_beaten} teams beaten
-                </p>
-              </div>
+              <p className="text-xl md:text-2xl font-bold mt-1">{stats.weekly_performance.best_single_week.team}</p>
+              <p className="text-xs md:text-sm text-gray-400 mt-1">{stats.weekly_performance.best_single_week.teams_beaten} teams beaten</p>
             </div>
           )}
           
           {stats.weekly_performance.most_improved && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm text-gray-400 mb-1">Most Improved</h3>
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+              <h3 className="text-xs md:text-sm text-gray-400 mb-1">Most Improved</h3>
               <button
                 onClick={() => setSelectedTeam(stats.weekly_performance.most_improved!.name)}
-                className="text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                className="text-base md:text-lg font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
                 {stats.weekly_performance.most_improved.name}
               </button>
-              <p className="text-lg font-bold mt-1 text-green-400">
+              <p className="text-base md:text-lg font-bold mt-1 text-green-400">
                 +{stats.weekly_performance.most_improved.improvement.toFixed(1)}
               </p>
               {stats.weekly_performance.most_improved.description && (

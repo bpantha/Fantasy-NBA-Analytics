@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import LeagueOverview from '../components/LeagueOverview'
 import TeamVsLeague from '../components/TeamVsLeague'
-import Chatbot from '../components/Chatbot'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'overview' | 'team'>('overview')
-  const [chatbotOpen, setChatbotOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -17,12 +15,9 @@ export default function Home() {
       <header className="bg-gray-800 border-b border-gray-700 p-2 md:p-4">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
           <h1 className="text-xl md:text-2xl font-bold">🏀 Las Puntas Dynasty League</h1>
-          <button
-            onClick={() => setChatbotOpen(!chatbotOpen)}
-            className="bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm md:text-base w-full md:w-auto"
-          >
-            {chatbotOpen ? 'Close' : 'Open'} Trash Talk AI
-          </button>
+          <div className="bg-gray-700 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-sm md:text-base text-center w-full md:w-auto">
+            AI Agent Coming Soon
+          </div>
         </div>
       </header>
 
@@ -60,8 +55,6 @@ export default function Home() {
         {activeTab === 'team' && <TeamVsLeague apiBase={API_BASE} />}
       </main>
 
-      {/* Chatbot Sidebar */}
-      {chatbotOpen && <Chatbot apiBase={API_BASE} onClose={() => setChatbotOpen(false)} />}
     </div>
   )
 }

@@ -280,6 +280,13 @@ def get_league_stats():
                 win_pct = team_summary.get('win_percentage', 0)
                 break
         
+        # Get logo_url from league summary
+        logo_url = ''
+        for team_summary in league_summary.get('teams', []):
+            if team_summary.get('name') == team_name:
+                logo_url = team_summary.get('logo_url', '')
+                break
+        
         teams_list.append({
             'name': team_name,
             'total_wins': overall_wins,
@@ -288,7 +295,8 @@ def get_league_stats():
             'variance': round(variance, 2),
             'total_teams_beaten': stats['total_teams_beaten'],
             'total_minutes': round(stats['total_minutes'], 1),
-            'efficiency': round(overall_wins / stats['total_minutes'] * 1000, 3) if stats['total_minutes'] > 0 else 0
+            'efficiency': round(overall_wins / stats['total_minutes'] * 1000, 3) if stats['total_minutes'] > 0 else 0,
+            'logo_url': logo_url
         })
     
     # Sort and find leaders
@@ -463,6 +471,9 @@ def get_league_stats():
             **most_improved,
             'description': f"Improved from {most_improved['early_avg']} to {most_improved['recent_avg']} teams beaten per week (+{most_improved['improvement']} improvement)"
         }
+    
+    # Add teams_list to results
+    results['teams_list'] = teams_list
     
     return jsonify(results)
 

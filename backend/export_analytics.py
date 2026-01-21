@@ -201,6 +201,7 @@ def export_week_analytics(league, matchup_period):
             teams_data.append({
                 'name': team_name,
                 'team_id': team.team_id,
+                'logo_url': team.logo_url if hasattr(team, 'logo_url') else '',
                 'total_teams_beaten': stats['total_teams_beaten'],
                 'total_category_wins': stats['total_category_wins'],
                 'minutes_played': minutes,
@@ -238,6 +239,7 @@ def export_league_summary(league):
             'rank': i,
             'name': get_team_display_name(team),
             'team_id': team.team_id,
+            'logo_url': team.logo_url if hasattr(team, 'logo_url') else '',
             'wins': team.wins,
             'losses': team.losses,
             'ties': team.ties,

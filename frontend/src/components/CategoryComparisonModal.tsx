@@ -36,13 +36,22 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
   }
 
   const categoryLeader = stats?.category_performance?.category_leaders?.[category]
-  const allTeams = stats?.overall_performance ? Object.values(stats.overall_performance).filter((t: any) => t && t.name) : []
+  
+  // Get all teams and their category wins from teams_list
+  const teamsWithCategoryWins = stats?.teams_list ? stats.teams_list.map((team: any) => {
+    // We need to fetch category-specific wins - for now show total category wins
+    return {
+      name: team.name,
+      logo_url: team.logo_url,
+      total_category_wins: team.total_category_wins || 0
+    }
+  }).sort((a: any, b: any) => b.total_category_wins - a.total_category_wins) : []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
-          <h2 className="text-xl md:text-2xl font-bold">{category} Category Leaders</h2>
+        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center">
+          <h2 className="text-lg md:text-xl font-bold">{category} Category Comparison</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white text-2xl font-bold"
@@ -51,16 +60,54 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
           </button>
         </div>
         
-        <div className="p-4 md:p-6">
+        <div className="p-3 md:p-6">
           {categoryLeader && (
-            <div className="bg-gray-700 p-4 rounded-lg mb-4">
-              <h3 className="text-lg font-semibold mb-2">Top Team</h3>
-              <p className="text-xl font-bold text-blue-400">{categoryLeader.team}</p>
+            <div className="bg-gray-700 p-3 md:p-4 rounded-lg mb-4">
+              <h3 className="text-base md:text-lg font-semibold mb-2">Top Team</h3>
+              <p className="text-lg md:text-xl font-bold text-blue-400">{categoryLeader.team}</p>
               <p className="text-sm text-gray-400 mt-1">{categoryLeader.wins} category wins</p>
             </div>
           )}
           
-          <p className="text-sm text-gray-400 mb-4">
+          <div className="mt-4">
+            <h3 className="text-base md:text-lg font-semibold mb-3">All Teams Ranked</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm md:text-base">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Category Wins</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamsWithCategoryWins.map((team: any, index: number) => (
+                    <tr key={team.name} className="border-t border-gray-700 hover:bg-gray-750">
+                      <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3">
+                        <div className="flex items-center gap-2">
+                          {team.logo_url && (
+                            <img 
+                              src={team.logo_url} 
+                              alt={team.name}
+                              className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          )}
+                          <span className="font-medium">{team.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{team.total_category_wins}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <p className="text-xs md:text-sm text-gray-400 mt-4">
             This metric counts how many times each team won the {category} category against opponents across all weeks.
           </p>
         </div>
