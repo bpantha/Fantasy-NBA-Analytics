@@ -150,7 +150,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                         <div className="flex items-center gap-2 md:gap-3">
                           {team.logo_url && (
                             <img 
-                              src={team.logo_url} 
+                              src={team.logo_url.startsWith('http') ? team.logo_url : `https://${team.logo_url}`} 
                               alt={team.name}
                               className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                               onError={(e) => {
@@ -455,7 +455,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                 {stats.weekly_performance.best_single_week.name}
               </button>
               <p className="text-xl md:text-2xl font-bold mt-1">{stats.weekly_performance.best_single_week.team}</p>
-              <p className="text-xs md:text-sm text-gray-400 mt-1">{stats.weekly_performance.best_single_week.teams_beaten} teams beaten</p>
+              <p className="text-xs md:text-sm text-gray-400 mt-1">Week {stats.weekly_performance.best_single_week.week}: {stats.weekly_performance.best_single_week.teams_beaten} {stats.weekly_performance.best_single_week.teams_beaten === 1 ? 'team' : 'teams'} beaten</p>
             </div>
           )}
           
