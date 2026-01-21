@@ -282,12 +282,18 @@ def get_league_stats():
                 win_pct = team_summary.get('win_percentage', 0)
                 break
         
-        # Get logo_url from league summary
+        # Get logo_url from league summary, or construct from team_id if missing
         logo_url = ''
+        team_id_for_logo = None
         for team_summary in league_summary.get('teams', []):
             if team_summary.get('name') == team_name:
                 logo_url = team_summary.get('logo_url', '')
+                team_id_for_logo = team_summary.get('team_id')
                 break
+        
+        # If logo_url is still empty, try to construct from team_id
+        if not logo_url and team_id_for_logo:
+            logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team_id_for_logo}.png'
         
         teams_list.append({
             'name': team_name,

@@ -180,6 +180,11 @@ def export_week_analytics(league, matchup_period):
                     'lost_cats': details['lost_cats']
                 }
         
+        # Create a mapping from team_id to team object from league.teams (which has logo data)
+        team_id_to_league_team = {}
+        for league_team in league.teams:
+            team_id_to_league_team[league_team.team_id] = league_team
+        
         # Sort teams by total teams beaten
         sorted_teams = sorted(team_totals.items(), 
                             key=lambda x: (x[1]['total_teams_beaten'], x[1]['total_category_wins']), 
@@ -198,17 +203,28 @@ def export_week_analytics(league, matchup_period):
                     opponent_minutes = mins
                     break
             
-            # Fix logo URL - ESPN returns relative URLs, need to make them absolute
+            # Get logo URL from league.teams (which has full team data including logos)
             logo_url = ''
-            if hasattr(team, 'logo_url') and team.logo_url:
-                if team.logo_url.startswith('http'):
-                    logo_url = team.logo_url
-                elif team.logo_url.startswith('//'):
-                    logo_url = f'https:{team.logo_url}'
-                elif team.logo_url.startswith('/'):
-                    logo_url = f'https://a.espncdn.com{team.logo_url}'
-                else:
-                    logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{team.logo_url}'
+            league_team = team_id_to_league_team.get(team.team_id)
+            if league_team:
+                # Check if logo_url exists and has a value
+                if hasattr(league_team, 'logo_url') and league_team.logo_url:
+                    raw_logo = league_team.logo_url
+                    if raw_logo.startswith('http'):
+                        logo_url = raw_logo
+                    elif raw_logo.startswith('//'):
+                        logo_url = f'https:{raw_logo}'
+                    elif raw_logo.startswith('/'):
+                        logo_url = f'https://a.espncdn.com{raw_logo}'
+                    else:
+                        logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{raw_logo}'
+            
+            # If still empty, try to construct from team_id (ESPN fantasy team logo format)
+            # ESPN uses format: https://a.espncdn.com/i/teamlogos/default-team-logo-500.png
+            # Or try: https://a.espncdn.com/i/teamlogos/fba/500/{team_id}.png
+            if not logo_url:
+                # Try ESPN fantasy basketball team logo URL format
+                logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team.team_id}.png'
             
             teams_data.append({
                 'name': team_name,
@@ -260,14 +276,20 @@ def export_league_summary(league):
         # Fix logo URL - ESPN returns relative URLs, need to make them absolute
         logo_url = ''
         if hasattr(team, 'logo_url') and team.logo_url:
-            if team.logo_url.startswith('http'):
-                logo_url = team.logo_url
-            elif team.logo_url.startswith('//'):
-                logo_url = f'https:{team.logo_url}'
-            elif team.logo_url.startswith('/'):
-                logo_url = f'https://a.espncdn.com{team.logo_url}'
+            raw_logo = team.logo_url
+            if raw_logo.startswith('http'):
+                logo_url = raw_logo
+            elif raw_logo.startswith('//'):
+                logo_url = f'https:{raw_logo}'
+            elif raw_logo.startswith('/'):
+                logo_url = f'https://a.espncdn.com{raw_logo}'
             else:
-                logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{team.logo_url}'
+                logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{raw_logo}'
+        
+        # If still empty, try to construct from team_id (ESPN fantasy team logo format)
+        if not logo_url:
+            # Try ESPN fantasy basketball team logo URL format
+            logo_url = f'https://a.espncdn.com/i/teamlogos/fba/500/{team.team_id}.png'
         
         teams_summary.append({
             'rank': i,
