@@ -194,7 +194,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   return (
     <div className="space-y-6">
       {/* Week and Team Selectors */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <div className="bg-gray-800 p-4 rounded-lg">
           <label className="block mb-2 font-semibold">Select Week:</label>
           <select
@@ -224,9 +224,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
       {/* Bar Graph */}
       {graphData.length > 0 && (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Teams Beaten Over Time - {selectedTeam}</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+          <h2 className="text-lg md:text-xl font-bold mb-4">Teams Beaten Over Time - {selectedTeam}</h2>
+          <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
             <BarChart data={graphData} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="week" stroke="#9CA3AF" />
@@ -252,15 +252,15 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
       {/* Weekly Leaderboard */}
       {leaderboard.length > 0 && (
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4">Week {selectedWeek} Leaderboard</h2>
+        <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+          <h2 className="text-lg md:text-xl font-bold mb-4">Week {selectedWeek} Leaderboard</h2>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm md:text-base">
               <thead className="bg-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left">Rank</th>
-                  <th className="px-4 py-3 text-left">Team</th>
-                  <th className="px-4 py-3 text-right">Total Wins</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
                 </tr>
               </thead>
               <tbody>
@@ -270,17 +270,17 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                     className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
                     onClick={() => setSelectedTeam(entry.team_name)}
                   >
-                    <td className="px-4 py-3">{index + 1}</td>
-                    <td className="px-4 py-3 font-medium text-blue-400 hover:text-blue-300">
+                    <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
+                    <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
                       {entry.team_name}
                     </td>
-                    <td className="px-4 py-3 text-right">{entry.total_wins}</td>
+                    <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
+          <p className="text-xs md:text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
         </div>
       )}
 
@@ -288,32 +288,41 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       {selectedTeamData && (
         <div className="space-y-6">
           {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-200 mb-2">Teams Beaten</h3>
-              <p className="text-4xl font-bold">{teamsBeaten}</p>
-              <p className="text-sm text-blue-200 mt-1">5-4-0 or better</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 md:p-6 rounded-lg">
+              <h3 className="text-xs md:text-sm font-semibold text-blue-200 mb-2">Teams Beaten</h3>
+              <p className="text-3xl md:text-4xl font-bold">{teamsBeaten}</p>
+              <p className="text-xs md:text-sm text-blue-200 mt-1">5-4-0 or better</p>
             </div>
             
-            <div className="bg-gradient-to-br from-green-600 to-green-800 p-6 rounded-lg">
-              <h3 className="text-sm font-semibold text-green-200 mb-2">Total Category Wins</h3>
-              <p className="text-4xl font-bold">{selectedTeamData.total_category_wins}</p>
-              <p className="text-sm text-green-200 mt-1">Across all matchups</p>
+            <div className="bg-gradient-to-br from-green-600 to-green-800 p-4 md:p-6 rounded-lg">
+              <h3 className="text-xs md:text-sm font-semibold text-green-200 mb-2">Total Category Wins</h3>
+              <p className="text-3xl md:text-4xl font-bold">{selectedTeamData.total_category_wins}</p>
+              <p className="text-xs md:text-sm text-green-200 mt-1">Across all matchups</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-4 md:p-6 rounded-lg">
+              <h3 className="text-xs md:text-sm font-semibold text-orange-200 mb-2">Minutes Played</h3>
+              <p className="text-2xl md:text-3xl font-bold">{selectedTeamData.minutes_played.toFixed(0)}</p>
+              <p className="text-xs md:text-sm text-orange-200 mt-1">
+                {selectedTeamData.minutes_vs_league_avg > 0 ? '+' : ''}
+                {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs avg
+              </p>
             </div>
             
             {bestCategory && (
-              <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-6 rounded-lg">
-                <h3 className="text-sm font-semibold text-purple-200 mb-2">Best Category</h3>
-                <p className="text-2xl font-bold">{bestCategory.category}</p>
-                <p className="text-sm text-purple-200 mt-1">{bestCategory.wins} wins</p>
+              <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">Best Category</h3>
+                <p className="text-xl md:text-2xl font-bold">{bestCategory.category}</p>
+                <p className="text-xs md:text-sm text-purple-200 mt-1">{bestCategory.wins} wins</p>
               </div>
             )}
           </div>
 
           {/* Opponent Matchup */}
           {selectedTeamData.opponent_name && (
-            <div className="bg-gray-800 p-6 rounded-lg">
-              <h3 className="text-xl font-bold mb-4">vs {selectedTeamData.opponent_name}</h3>
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+              <h3 className="text-lg md:text-xl font-bold mb-4">vs {selectedTeamData.opponent_name}</h3>
               {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
@@ -340,8 +349,8 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           )}
 
           {/* Performance vs All Teams */}
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-xl font-bold mb-4">Performance vs All Teams</h3>
+          <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+            <h3 className="text-lg md:text-xl font-bold mb-4">Performance vs All Teams</h3>
             <div className="space-y-4">
               {Object.entries(selectedTeamData.matchup_details).map(([opponent, details]) => (
                 <div key={opponent} className="border border-gray-700 rounded-lg p-4">
