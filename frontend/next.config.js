@@ -5,8 +5,8 @@ const nextConfig = {
     unoptimized: true
   },
   trailingSlash: true,
-  basePath: process.env.NODE_ENV === 'production' ? '/espn-api' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/espn-api' : '',
+  basePath: process.env.NODE_ENV === 'production' ? '/Fantasy-NBA-Analytics' : '',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/Fantasy-NBA-Analytics' : '',
 }
 
 module.exports = nextConfig
