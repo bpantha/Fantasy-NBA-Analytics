@@ -903,12 +903,12 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projected['BLK'] += blk_add
                         projected['3PM'] += threepm_add
                         projected['TO'] += to_add
-                            
-                            player_additions = {
-                                'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
-                                'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
-                            }
-                            projection_additions[player_name] = player_additions
+                        
+                        player_additions = {
+                            'PTS': pts_add, 'REB': reb_add, 'AST': ast_add,
+                            'STL': stl_add, 'BLK': blk_add, '3PM': threepm_add, 'TO': to_add
+                        }
+                        projection_additions[player_name] = player_additions
                         
                         # Track FG and FT for percentages - need to get from stats dict
                         player_stats = getattr(player, 'stats', {})
