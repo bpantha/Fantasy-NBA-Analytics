@@ -65,9 +65,16 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
               className="w-full bg-gray-700 text-white px-4 py-2 rounded"
             >
-              {weeks.map(week => (
-                <option key={week} value={week}>Week {week}</option>
-              ))}
+              {weeks.map(week => {
+                // Try to get week dates from weekData if available
+                let label = `Week ${week}`
+                if (weekData && week === selectedWeek && weekData.week_start_date && weekData.week_end_date) {
+                  const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  label = `Week ${week} (${start} - ${end})`
+                }
+                return <option key={week} value={week}>{label}</option>
+              })}
             </select>
           </div>
 
@@ -91,11 +98,14 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
                   <p className="text-2xl font-bold">{teamData.minutes_played.toFixed(0)}</p>
                 </div>
                 <div className="bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-sm text-gray-400 mb-1">vs League Avg</h3>
+                  <h3 className="text-sm text-gray-400 mb-1">vs League Avg Minutes</h3>
                   <p className="text-2xl font-bold">
                     {teamData.minutes_vs_league_avg > 0 ? '+' : ''}
                     {teamData.minutes_vs_league_avg.toFixed(1)}
                   </p>
+                  {weekData && (
+                    <p className="text-xs text-gray-400 mt-1">Week {selectedWeek} League Avg: {weekData.league_avg_minutes.toFixed(1)} min</p>
+                  )}
                 </div>
               </div>
 

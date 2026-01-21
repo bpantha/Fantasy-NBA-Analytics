@@ -307,7 +307,11 @@ def get_league_stats():
             'total_wins_leader': max(teams_list, key=lambda x: x['total_wins']) if teams_list else None,
             'win_pct_leader': max(teams_list, key=lambda x: x['win_percentage']) if teams_list else None,
             'most_dominant': max(teams_list, key=lambda x: x['avg_teams_beaten']) if teams_list else None,
-            'most_consistent': min(teams_list, key=lambda x: x['variance']) if teams_list else None
+            # Most consistent: combine low variance with decent avg teams beaten (coefficient of variation)
+            'most_consistent': min(
+                teams_list, 
+                key=lambda x: x['variance'] / max(x['avg_teams_beaten'], 0.1) if x['avg_teams_beaten'] > 0 else float('inf')
+            ) if teams_list else None
         },
         'category_performance': {},
         'activity_metrics': {},

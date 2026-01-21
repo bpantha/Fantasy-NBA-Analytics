@@ -150,7 +150,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                         <div className="flex items-center gap-2 md:gap-3">
                           {team.logo_url && (
                             <img 
-                              src={team.logo_url.startsWith('http') ? team.logo_url : `https://${team.logo_url}`} 
+                              src={team.logo_url} 
                               alt={team.name}
                               className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                               onError={(e) => {
@@ -177,25 +177,28 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
       {/* Category Dominance */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">Category Dominance</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl md:text-2xl font-bold">Category Dominance</h2>
+          <p className="text-xs md:text-sm text-gray-400">Click any category to compare all teams</p>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {categories.map(cat => {
             const leader = stats.category_performance.category_leaders[cat]
             if (!leader) return null
             return (
-              <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors" onClick={() => setSelectedCategory(cat)}>
+              <div key={cat} className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors border border-transparent hover:border-blue-500" onClick={() => setSelectedCategory(cat)}>
                 <h3 className="text-xs md:text-sm font-semibold text-gray-300 mb-2 text-center">{cat}</h3>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setSelectedTeam(leader.team)
                   }}
-                  className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block w-full text-center"
+                  className="text-sm md:text-base font-bold text-blue-400 hover:text-blue-300 transition-colors block w-full text-center underline decoration-dotted"
+                  title="Click team name for team details"
                 >
                   {leader.team}
                 </button>
-                <p className="text-lg md:text-xl font-bold mt-1 text-center">{leader.wins} wins</p>
-                <p className="text-xs text-gray-400 mt-1 text-center">Click to compare</p>
+                <p className="text-lg md:text-xl font-bold mt-1 text-center">{leader.wins} {leader.wins === 1 ? 'win' : 'wins'}</p>
               </div>
             )
           })}
@@ -323,7 +326,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg md:text-xl font-bold">{team.streak} weeks</span>
+                  <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
                 </div>
               ))}
             </div>
@@ -341,7 +344,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                   >
                     {team.name}
                   </button>
-                  <span className="text-lg md:text-xl font-bold">{team.streak} weeks</span>
+                  <span className="text-lg md:text-xl font-bold">{team.streak} {team.streak === 1 ? 'week' : 'weeks'}</span>
                 </div>
               ))}
             </div>

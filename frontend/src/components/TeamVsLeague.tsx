@@ -27,6 +27,8 @@ interface Team {
 interface WeekData {
   matchup_period: number
   export_date: string
+  week_start_date?: string
+  week_end_date?: string
   league_avg_minutes: number
   teams: Team[]
 }
@@ -101,11 +103,12 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           const opponent = team.opponent_name
           if (!minutesMap[opponent] || parseInt(weekNum) > minutesMap[opponent].week) {
             // Use the most recent week if team played opponent multiple times
-            // Calculate vs that week's average
+            // Calculate vs that week's average - use the week's own average, not a different week
             const weekAvg = weekData.league_avg_minutes || 0
+            const teamMinutes = team.minutes_played || 0
             minutesMap[opponent] = {
-              minutes: team.minutes_played || 0,
-              vsAvg: (team.minutes_played || 0) - weekAvg,
+              minutes: teamMinutes,
+              vsAvg: teamMinutes - weekAvg,  // Compare against the same week's average
               week: parseInt(weekNum)
             }
           }
@@ -230,9 +233,16 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
             className="w-full bg-gray-700 text-white px-4 py-2 rounded"
           >
-            {weeks.map(week => (
-              <option key={week} value={week}>Week {week}</option>
-            ))}
+            {weeks.map(week => {
+              const weekData = allWeeksData[week]
+              let label = `Week ${week}`
+              if (weekData?.week_start_date && weekData?.week_end_date) {
+                const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                label = `Week ${week} (${start} - ${end})`
+              }
+              return <option key={week} value={week}>{label}</option>
+            })}
           </select>
         </div>
 
@@ -257,11 +267,25 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
             <BarChart data={graphData} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="week" stroke="#9CA3AF" />
+              <XAxis 
+                dataKey="week" 
+                stroke="#9CA3AF"
+                tickFormatter={(value) => `W${value}`}
+              />
               <YAxis stroke="#9CA3AF" />
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
                 labelStyle={{ color: '#F3F4F6' }}
+                formatter={(value: any) => [`Teams Beaten: ${value}`, '']}
+                labelFormatter={(label: any) => {
+                  const weekData = allWeeksData[label]
+                  if (weekData?.week_start_date && weekData?.week_end_date) {
+                    const start = new Date(weekData.week_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    const end = new Date(weekData.week_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    return `Week ${label} (${start} - ${end})`
+                  }
+                  return `Week ${label}`
+                }}
               />
               <Legend />
               <Bar dataKey="teamsBeaten" fill="#3B82F6" name="Teams Beaten">
@@ -290,7 +314,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                   <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
                   <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
                   <th className="px-2 md:px-4 py-2 md:py-3 text-right">Minutes</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week Avg Minutes</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week {selectedWeek} League Avg Minutes</th>
                 </tr>
               </thead>
               <tbody>
@@ -311,7 +335,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                       <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
                       <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
                       <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)} vs Week {selectedWeek} League Avg Minutes
+                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
                       </td>
                     </tr>
                   )

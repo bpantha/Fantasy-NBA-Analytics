@@ -198,10 +198,22 @@ def export_week_analytics(league, matchup_period):
                     opponent_minutes = mins
                     break
             
+            # Fix logo URL - ESPN returns relative URLs, need to make them absolute
+            logo_url = ''
+            if hasattr(team, 'logo_url') and team.logo_url:
+                if team.logo_url.startswith('http'):
+                    logo_url = team.logo_url
+                elif team.logo_url.startswith('//'):
+                    logo_url = f'https:{team.logo_url}'
+                elif team.logo_url.startswith('/'):
+                    logo_url = f'https://a.espncdn.com{team.logo_url}'
+                else:
+                    logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{team.logo_url}'
+            
             teams_data.append({
                 'name': team_name,
                 'team_id': team.team_id,
-                'logo_url': team.logo_url if hasattr(team, 'logo_url') else '',
+                'logo_url': logo_url,
                 'total_teams_beaten': stats['total_teams_beaten'],
                 'total_category_wins': stats['total_category_wins'],
                 'minutes_played': minutes,
@@ -213,9 +225,19 @@ def export_week_analytics(league, matchup_period):
                 'matchup_details': stats['matchup_details']
             })
         
+        # Calculate week dates (estimate based on matchup period - typically 7 days per week)
+        # Week 1 usually starts around season start date
+        # For 2026 season, estimate Oct 15, 2025 as start
+        from datetime import timedelta
+        season_start = datetime(2025, 10, 15)  # Approximate NBA season start
+        week_start = season_start + timedelta(days=(matchup_period - 1) * 7)
+        week_end = week_start + timedelta(days=6)
+        
         return {
             'matchup_period': matchup_period,
             'export_date': datetime.now().isoformat(),
+            'week_start_date': week_start.strftime('%Y-%m-%d'),
+            'week_end_date': week_end.strftime('%Y-%m-%d'),
             'league_avg_minutes': league_avg_minutes,
             'teams': teams_data
         }
@@ -235,11 +257,23 @@ def export_league_summary(league):
         total_games = team.wins + team.losses + team.ties
         win_pct = (team.wins / total_games * 100) if total_games > 0 else 0
         
+        # Fix logo URL - ESPN returns relative URLs, need to make them absolute
+        logo_url = ''
+        if hasattr(team, 'logo_url') and team.logo_url:
+            if team.logo_url.startswith('http'):
+                logo_url = team.logo_url
+            elif team.logo_url.startswith('//'):
+                logo_url = f'https:{team.logo_url}'
+            elif team.logo_url.startswith('/'):
+                logo_url = f'https://a.espncdn.com{team.logo_url}'
+            else:
+                logo_url = f'https://a.espncdn.com/i/teamlogos/nba/500/{team.logo_url}'
+        
         teams_summary.append({
             'rank': i,
             'name': get_team_display_name(team),
             'team_id': team.team_id,
-            'logo_url': team.logo_url if hasattr(team, 'logo_url') else '',
+            'logo_url': logo_url,
             'wins': team.wins,
             'losses': team.losses,
             'ties': team.ties,

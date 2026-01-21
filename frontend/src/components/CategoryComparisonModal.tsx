@@ -88,7 +88,7 @@ export default function CategoryComparisonModal({ category, apiBase, onClose }: 
                         <div className="flex items-center gap-2">
                           {team.logo_url && (
                             <img 
-                              src={team.logo_url.startsWith('http') ? team.logo_url : `https://${team.logo_url}`} 
+                              src={team.logo_url} 
                               alt={team.name}
                               className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                               onError={(e) => {
