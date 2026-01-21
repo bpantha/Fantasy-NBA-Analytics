@@ -87,6 +87,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
     axios.get(`${apiBase}/league/stats`)
@@ -131,9 +133,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     '3PM': '💫',
     'TO': '⚠️'
   }
-
-  const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const handleSort = (field: 'avg_teams_beaten' | 'total_wins' | 'win_percentage') => {
     if (sortField === field) {
