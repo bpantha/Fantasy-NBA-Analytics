@@ -171,9 +171,14 @@ def query_huggingface_llm(query, context_data):
     """Query Hugging Face LLM with context"""
     import requests
     
-    # Use a free Hugging Face model (e.g., mistralai/Mistral-7B-Instruct-v0.2 or similar)
-    # For free tier, we can use smaller models
-    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+    # Use a free Hugging Face model - using a more reliable one
+    # Try multiple models as fallback
+    API_URLS = [
+        "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+        "https://api-inference.huggingface.co/models/gpt2",
+        "https://api-inference.huggingface.co/models/google/flan-t5-base"
+    ]
+    API_URL = API_URLS[0]  # Start with first one
     headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY', '')}"}
     
     # Format context as text
@@ -197,17 +202,20 @@ Provide a clear, concise answer based only on the data provided above. If the da
         }
     }
     
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get('generated_text', 'Unable to generate response')
-        return str(result)
-    except Exception as e:
-        # Fallback to simple keyword matching if API fails
-        return f"Error querying LLM: {str(e)}. Please try rephrasing your question."
+    # Try each API URL as fallback
+    for api_url in API_URLS:
+        try:
+            response = requests.post(api_url, headers=headers, json=payload, timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0].get('generated_text', 'Unable to generate response')
+                return str(result)
+        except Exception as e:
+            continue  # Try next URL
+    
+    # If all fail, return a helpful message
+    return "Sorry, the AI is having issues right now. Try asking about specific teams or players from your league data!"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

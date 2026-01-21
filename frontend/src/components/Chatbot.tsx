@@ -10,7 +10,7 @@ interface Message {
 
 export default function Chatbot({ apiBase, onClose }: { apiBase: string; onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hello! I can help you analyze fantasy basketball data. Ask me anything about teams, players, or matchups!' }
+    { role: 'assistant', content: 'What\'s up? Ready to talk some trash about your league? Ask me anything about teams, players, or matchups and I\'ll give you the real talk! 💪' }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,7 +55,7 @@ export default function Chatbot({ apiBase, onClose }: { apiBase: string; onClose
     <div className="fixed right-0 top-0 h-full w-full md:w-96 bg-gray-800 border-l border-gray-700 flex flex-col z-50">
       {/* Header */}
       <div className="bg-gray-700 p-4 flex justify-between items-center">
-        <h2 className="text-lg font-bold">Analytics Chatbot</h2>
+        <h2 className="text-lg font-bold">🗣️ Trash Talk AI</h2>
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-white"
