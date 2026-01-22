@@ -42,16 +42,10 @@ def export_week_analytics(league, matchup_period):
         if matchup_period == league.currentMatchupPeriod:
             # Refresh league to get latest scoring period
             league.fetch_league()
-            # Get the latest scoring period in the matchup
-            matchup_scoring_periods = league.matchup_ids.get(matchup_period, [])
-            if matchup_scoring_periods:
-                # Use the LAST (latest) scoring period in the matchup
-                latest_scoring_period = int(matchup_scoring_periods[-1])
-                # Use matchup_total=True to get cumulative stats, but with latest scoring period
-                box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=latest_scoring_period, matchup_total=True)
-            else:
-                # Fallback to current_week
-                box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=league.current_week, matchup_total=True)
+            # Explicitly use current_week as scoring_period to ensure we get the latest data
+            # matchup_total=True ensures we get cumulative stats for the entire matchup
+            current_scoring_period = league.current_week
+            box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=current_scoring_period, matchup_total=True)
         else:
             # For historical weeks, use default behavior
             box_scores = league.box_scores(matchup_period=matchup_period, matchup_total=True)
