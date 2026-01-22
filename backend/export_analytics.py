@@ -38,7 +38,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 def export_week_analytics(league, matchup_period):
     """Export analytics for a specific week to JSON"""
     try:
-        box_scores = league.box_scores(matchup_period=matchup_period)
+        # Use matchup_total=True to get cumulative stats for the entire matchup period
+        # This is especially important for the current week to get all accumulated stats
+        box_scores = league.box_scores(matchup_period=matchup_period, matchup_total=True)
         
         if not box_scores:
             return None
