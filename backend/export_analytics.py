@@ -38,17 +38,20 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 def export_week_analytics(league, matchup_period):
     """Export analytics for a specific week to JSON"""
     try:
-        # Refresh league data to ensure we have the latest current_week and matchup info
-        # This is important for getting fresh data, especially for the current week
+        # For current week, ensure we get the absolute latest data
         if matchup_period == league.currentMatchupPeriod:
             # Refresh league to get latest scoring period
             league.fetch_league()
-        
-        # Use matchup_total=True to get cumulative stats for the entire matchup period
-        # This is especially important for the current week to get all accumulated stats
-        if matchup_period == league.currentMatchupPeriod:
-            # For current week, explicitly use current scoring period to ensure fresh data
-            box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=league.current_week, matchup_total=True)
+            # Get the latest scoring period in the matchup
+            matchup_scoring_periods = league.matchup_ids.get(matchup_period, [])
+            if matchup_scoring_periods:
+                # Use the LAST (latest) scoring period in the matchup
+                latest_scoring_period = int(matchup_scoring_periods[-1])
+                # Use matchup_total=True to get cumulative stats, but with latest scoring period
+                box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=latest_scoring_period, matchup_total=True)
+            else:
+                # Fallback to current_week
+                box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=league.current_week, matchup_total=True)
         else:
             # For historical weeks, use default behavior
             box_scores = league.box_scores(matchup_period=matchup_period, matchup_total=True)
