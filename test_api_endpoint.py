@@ -3,14 +3,17 @@
 
 import requests
 import json
+import os
 
 # Try to get the API base URL from environment or use default
-API_BASE = "https://laspuntas.onrender.com"  # Update this to your actual Render URL
+# Common Render URL patterns
+API_BASE = os.getenv('API_BASE', "https://laspuntas.onrender.com")
 
 # Get current week first
+print(f"Testing API endpoint: {API_BASE}")
 print("Fetching current week from league summary...")
 try:
-    summary_response = requests.get(f"{API_BASE}/api/league/summary", timeout=10)
+    summary_response = requests.get(f"{API_BASE}/api/league/summary", timeout=30)
     if summary_response.status_code == 200:
         summary = summary_response.json()
         current_week = summary.get('current_matchup_period')
@@ -26,10 +29,11 @@ if current_week:
     print(f"Fetching live data for week {current_week}...")
     try:
         # Add cache-busting to ensure fresh data
+        print(f"Making request to: {API_BASE}/api/week/{current_week}")
         response = requests.get(
             f"{API_BASE}/api/week/{current_week}",
             params={"_t": "test"},
-            timeout=30
+            timeout=60  # Longer timeout for first request (cold start)
         )
         
         if response.status_code == 200:
