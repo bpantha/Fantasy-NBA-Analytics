@@ -75,28 +75,59 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       .catch(err => console.error('Error loading current week:', err))
   }, [apiBase])
 
-  // Load data for all weeks - refresh current week data on mount and when current week changes
+  // Load data for selected week first, then load other weeks in background
   useEffect(() => {
-    if (weeks.length > 0) {
-      const loadAllWeeks = async () => {
+    if (selectedWeek) {
+      const loadWeekData = async () => {
+        try {
+          setLoading(true)
+          // Always fetch fresh data for current week, use cached for historical
+          const res = await axios.get(`${apiBase}/week/${selectedWeek}`, {
+            // Add cache-busting for current week
+            params: selectedWeek === currentWeek ? { _t: Date.now() } : {}
+          })
+          setAllWeeksData(prev => ({
+            ...prev,
+            [selectedWeek]: res.data
+          }))
+          setWeekData(res.data)
+          // Set selected team if not already set
+          if (res.data.teams && res.data.teams.length > 0 && !selectedTeam) {
+            setSelectedTeam(res.data.teams[0].name)
+          }
+          setLoading(false)
+        } catch (err) {
+          console.error(`Error loading week ${selectedWeek}:`, err)
+          setLoading(false)
+        }
+      }
+      loadWeekData()
+    }
+  }, [selectedWeek, apiBase, currentWeek])
+  
+  // Load other weeks in background (non-blocking)
+  useEffect(() => {
+    if (weeks.length > 0 && selectedWeek) {
+      const loadOtherWeeks = async () => {
         const weeksData: Record<number, WeekData> = {}
         for (const week of weeks) {
+          // Skip selected week - already loaded
+          if (week === selectedWeek) continue
           try {
-            // Always fetch fresh data for current week, use cached for historical
-            const res = await axios.get(`${apiBase}/week/${week}`, {
-              // Add cache-busting for current week
-              params: week === currentWeek ? { _t: Date.now() } : {}
-            })
+            const res = await axios.get(`${apiBase}/week/${week}`)
             weeksData[week] = res.data
           } catch (err) {
             console.error(`Error loading week ${week}:`, err)
           }
         }
-        setAllWeeksData(weeksData)
+        setAllWeeksData(prev => ({
+          ...prev,
+          ...weeksData
+        }))
       }
-      loadAllWeeks()
+      loadOtherWeeks()
     }
-  }, [weeks, apiBase, currentWeek])
+  }, [weeks, selectedWeek, apiBase])
   
   // Refresh current week data
   const refreshCurrentWeek = async () => {
@@ -118,15 +149,16 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
     }
   }
 
-  // Update selected week data
+  // Update selected team when week data changes
   useEffect(() => {
-    if (selectedWeek && allWeeksData[selectedWeek]) {
-      setWeekData(allWeeksData[selectedWeek])
-      if (allWeeksData[selectedWeek].teams.length > 0 && !selectedTeam) {
-        setSelectedTeam(allWeeksData[selectedWeek].teams[0].name)
+    if (weekData && weekData.teams && weekData.teams.length > 0) {
+      // If current selected team is not in this week's teams, select first team
+      const teamExists = weekData.teams.some(t => t.name === selectedTeam)
+      if (!teamExists) {
+        setSelectedTeam(weekData.teams[0].name)
       }
     }
-  }, [selectedWeek, allWeeksData, selectedTeam])
+  }, [weekData, selectedTeam])
 
   // Calculate minutes vs each opponent
   useEffect(() => {
