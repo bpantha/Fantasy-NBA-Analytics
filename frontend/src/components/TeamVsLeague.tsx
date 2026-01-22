@@ -294,18 +294,44 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   return (
     <div className="space-y-6">
       {/* Week and Team Selectors */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <label className="block mb-2 font-semibold">Select Week:</label>
-          <select
-            value={selectedWeek || ''}
-            onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="w-full bg-gray-700 text-white px-4 py-2 rounded"
-          >
-            {weeks.map(week => (
-              <option key={week} value={week}>Week {week}</option>
-            ))}
-          </select>
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 flex-1 w-full sm:w-auto">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <label className="block mb-2 font-semibold">Select Week:</label>
+            <select
+              value={selectedWeek || ''}
+              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              className="w-full bg-gray-700 text-white px-4 py-2 rounded"
+            >
+              {weeks.map(week => (
+                <option key={week} value={week}>Week {week}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <label className="block mb-2 font-semibold">Select Team:</label>
+            {loading && !weekData ? (
+              <div className="w-full bg-gray-700 text-gray-400 px-4 py-2 rounded text-center">
+                Loading teams...
+              </div>
+            ) : (
+              <select
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                className="w-full bg-gray-700 text-white px-4 py-2 rounded"
+                disabled={!weekData || !teams || teams.length === 0}
+              >
+                {teams && teams.length > 0 ? (
+                  teams.map(team => (
+                    <option key={team.team_id} value={team.name}>{team.name}</option>
+                  ))
+                ) : (
+                  <option value="">No teams available</option>
+                )}
+              </select>
+            )}
+          </div>
         </div>
         {selectedWeek === currentWeek && (
           <button
@@ -316,31 +342,6 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             🔄 Refresh
           </button>
         )}
-      </div>
-
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <label className="block mb-2 font-semibold">Select Team:</label>
-          {loading && !weekData ? (
-            <div className="w-full bg-gray-700 text-gray-400 px-4 py-2 rounded text-center">
-              Loading teams...
-            </div>
-          ) : (
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-              className="w-full bg-gray-700 text-white px-4 py-2 rounded"
-              disabled={!weekData || !teams || teams.length === 0}
-            >
-              {teams && teams.length > 0 ? (
-                teams.map(team => (
-                  <option key={team.team_id} value={team.name}>{team.name}</option>
-                ))
-              ) : (
-                <option value="">No teams available</option>
-              )}
-            </select>
-          )}
-        </div>
       </div>
 
       {/* Bar Graph */}
