@@ -14,6 +14,15 @@ from pathlib import Path
 # Add parent directory to path for espn_api imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass  # dotenv not installed, use system env vars
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
 
@@ -637,10 +646,28 @@ def get_predictions():
         
         current_week = get_current_week()
         
-        # Get box scores for current week - use matchup_total=True to get cumulative stats for the entire matchup period
-        box_scores = league.box_scores(matchup_period=current_week, matchup_total=True)
+        # For current week, ensure we get the absolute latest data (same logic as export_week_analytics)
+        # Refresh league to get latest scoring period
+        league.fetch_league()
+        # Explicitly use current_week as scoring_period to ensure we get the latest data
+        # matchup_total=True ensures we get cumulative stats for the entire matchup
+        current_scoring_period = league.current_week
+        box_scores = league.box_scores(matchup_period=current_week, scoring_period=current_scoring_period, matchup_total=True)
         if not box_scores:
             return jsonify({'predictions': []})
+        
+        # OPTIMIZATION: Build player lookup dictionary once (player_id -> player with stats)
+        # This avoids nested loops through all teams for each player lookup
+        player_lookup = {}
+        for team in league.teams:
+            for roster_player in team.roster:
+                player_id = getattr(roster_player, 'playerId', None)
+                if player_id:
+                    player_lookup[player_id] = roster_player
+        
+        # OPTIMIZATION: Cache PRO_TEAM_MAP reverse lookup (only create once)
+        from espn_api.basketball.constant import PRO_TEAM_MAP
+        pro_team_reverse_map = {v: k for k, v in PRO_TEAM_MAP.items()}
         
         standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
         predictions = []
@@ -657,9 +684,9 @@ def get_predictions():
             home_name = home_team.team_name if hasattr(home_team, 'team_name') else str(home_team)
             away_name = away_team.team_name if hasattr(away_team, 'team_name') else str(away_team)
             
-            # Get lineups and project stats
-            home_projected = project_team_stats(box_score, home_team, away_team, True, league, current_week)
-            away_projected = project_team_stats(box_score, away_team, home_team, False, league, current_week)
+            # Get lineups and project stats (pass optimized lookups)
+            home_projected = project_team_stats(box_score, home_team, away_team, True, league, current_week, player_lookup, pro_team_reverse_map)
+            away_projected = project_team_stats(box_score, away_team, home_team, False, league, current_week, player_lookup, pro_team_reverse_map)
             
             # Compare categories
             categories = []
@@ -723,7 +750,7 @@ def get_predictions():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-def project_team_stats(box_score, team, opponent, is_home, league, current_week):
+def project_team_stats(box_score, team, opponent, is_home, league, current_week, player_lookup=None, pro_team_reverse_map=None):
     """Project team stats based on current accumulated stats + remaining games through Sunday"""
     standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
     projected = {cat: 0.0 for cat in standard_cats}
@@ -733,6 +760,19 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
     fg_attempted = 0.0
     ft_made = 0.0
     ft_attempted = 0.0
+    
+    # OPTIMIZATION: Build lookups if not provided (for backward compatibility)
+    if player_lookup is None:
+        player_lookup = {}
+        for team_obj in league.teams:
+            for roster_player in team_obj.roster:
+                player_id = getattr(roster_player, 'playerId', None)
+                if player_id:
+                    player_lookup[player_id] = roster_player
+    
+    if pro_team_reverse_map is None:
+        from espn_api.basketball.constant import PRO_TEAM_MAP
+        pro_team_reverse_map = {v: k for k, v in PRO_TEAM_MAP.items()}
     
     try:
         lineup = box_score.home_lineup if is_home else box_score.away_lineup
@@ -808,19 +848,13 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 if injury_status and injury_status.upper() == 'OUT':
                     continue
                 
-                # Get player's pro team ID
-                # BoxPlayer extends Player which has proTeam (name), we need to reverse lookup the ID
+                # Get player's pro team ID (using cached reverse map)
                 pro_team_id = None
                 try:
                     pro_team_name = getattr(player, 'proTeam', None)
                     if pro_team_name:
-                        # Reverse lookup: find pro_team_id by name
-                        from espn_api.basketball.constant import PRO_TEAM_MAP
-                        # PRO_TEAM_MAP maps ID -> name, we need reverse
-                        reverse_map = {v: k for k, v in PRO_TEAM_MAP.items()}
-                        pro_team_id = reverse_map.get(pro_team_name)
+                        pro_team_id = pro_team_reverse_map.get(pro_team_name)
                 except Exception as e:
-                    print(f"Error getting pro team ID for player {getattr(player, 'name', 'unknown')}: {e}")
                     continue
                 
                 if not pro_team_id:
@@ -837,11 +871,12 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                 player_name = getattr(player, 'name', 'unknown')
                 
                 # Player has a game in this scoring period - add their season averages
+                # OPTIMIZATION: Use pre-built player_lookup instead of nested loops
                 try:
                     avg_stats = {}
                     player_id = getattr(player, 'playerId', None)
                     
-                    # First, try to get stats from BoxPlayer itself
+                    # First, try to get stats from BoxPlayer itself (fastest)
                     if hasattr(player, 'nine_cat_averages'):
                         try:
                             avg_stats = player.nine_cat_averages
@@ -855,28 +890,19 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         if season_total_key in player_stats:
                             avg_stats = player_stats[season_total_key].get('avg', {})
                     
-                    # If still empty, try to get full player from league teams' rosters
-                    # BoxPlayer might not have full season stats, so fetch from team roster
-                    if not avg_stats and player_id:
-                        for team in league.teams:
-                            for roster_player in team.roster:
-                                if getattr(roster_player, 'playerId', None) == player_id:
-                                    # Found the full player - get their season averages
-                                    if hasattr(roster_player, 'nine_cat_averages'):
-                                        try:
-                                            avg_stats = roster_player.nine_cat_averages
-                                            break
-                                        except:
-                                            pass
-                                    if not avg_stats:
-                                        roster_player_stats = getattr(roster_player, 'stats', {})
-                                        season_total_key = f'{league.year}_total'
-                                        if season_total_key in roster_player_stats:
-                                            avg_stats = roster_player_stats[season_total_key].get('avg', {})
-                                            if avg_stats:
-                                                break
-                            if avg_stats:
-                                break
+                    # OPTIMIZATION: Use player_lookup dict instead of nested loops
+                    if not avg_stats and player_id and player_id in player_lookup:
+                        roster_player = player_lookup[player_id]
+                        if hasattr(roster_player, 'nine_cat_averages'):
+                            try:
+                                avg_stats = roster_player.nine_cat_averages
+                            except:
+                                pass
+                        if not avg_stats:
+                            roster_player_stats = getattr(roster_player, 'stats', {})
+                            season_total_key = f'{league.year}_total'
+                            if season_total_key in roster_player_stats:
+                                avg_stats = roster_player_stats[season_total_key].get('avg', {})
                     
                     if avg_stats:
                         # Track what we're adding for this player
@@ -902,20 +928,14 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week)
                         projected['TO'] += to_add
                         
                         # Track FG and FT for percentages - need to get from stats dict
-                        # Use the same source we got avg_stats from
+                        # OPTIMIZATION: Use player_lookup instead of nested loops
                         fg_ft_stats = {}
-                        if player_id:
-                            # Try to get from full player if we found one
-                            for team in league.teams:
-                                for roster_player in team.roster:
-                                    if getattr(roster_player, 'playerId', None) == player_id:
-                                        roster_player_stats = getattr(roster_player, 'stats', {})
-                                        season_total_key = f'{league.year}_total'
-                                        if season_total_key in roster_player_stats:
-                                            fg_ft_stats = roster_player_stats[season_total_key].get('avg', {})
-                                            break
-                                if fg_ft_stats:
-                                    break
+                        if player_id and player_id in player_lookup:
+                            roster_player = player_lookup[player_id]
+                            roster_player_stats = getattr(roster_player, 'stats', {})
+                            season_total_key = f'{league.year}_total'
+                            if season_total_key in roster_player_stats:
+                                fg_ft_stats = roster_player_stats[season_total_key].get('avg', {})
                         
                         # Fallback to BoxPlayer stats if we didn't find full player
                         if not fg_ft_stats:
