@@ -35,18 +35,18 @@ def get_league_instance():
     return None
 
 def get_current_week():
-    """Get current matchup period from league summary or live API"""
-    # Try to get from league summary first
+    """Get current matchup period from live API (always fresh)"""
+    # Always get from live API to ensure we have the most current week
+    league = get_league_instance()
+    if league:
+        return league.currentMatchupPeriod
+    
+    # Fallback to cached data only if API unavailable
     summary_path = DATA_DIR / 'league_summary.json'
     if summary_path.exists():
         with open(summary_path, 'r') as f:
             summary = json.load(f)
             return summary.get('current_matchup_period', 1)
-    
-    # Fallback: try live API
-    league = get_league_instance()
-    if league:
-        return league.currentMatchupPeriod
     return 1
 
 @app.route('/api/health', methods=['GET'])

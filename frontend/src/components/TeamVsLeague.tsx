@@ -63,14 +63,30 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       .catch(err => console.error('Error loading weeks:', err))
   }, [apiBase])
 
-  // Load data for all weeks
+  // Get current week from API
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
+  
+  useEffect(() => {
+    // Get current week from league summary
+    axios.get(`${apiBase}/league/summary`)
+      .then(res => {
+        setCurrentWeek(res.data.current_matchup_period)
+      })
+      .catch(err => console.error('Error loading current week:', err))
+  }, [apiBase])
+
+  // Load data for all weeks - refresh current week data on mount and when current week changes
   useEffect(() => {
     if (weeks.length > 0) {
       const loadAllWeeks = async () => {
         const weeksData: Record<number, WeekData> = {}
         for (const week of weeks) {
           try {
-            const res = await axios.get(`${apiBase}/week/${week}`)
+            // Always fetch fresh data for current week, use cached for historical
+            const res = await axios.get(`${apiBase}/week/${week}`, {
+              // Add cache-busting for current week
+              params: week === currentWeek ? { _t: Date.now() } : {}
+            })
             weeksData[week] = res.data
           } catch (err) {
             console.error(`Error loading week ${week}:`, err)
@@ -80,7 +96,27 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       }
       loadAllWeeks()
     }
-  }, [weeks, apiBase])
+  }, [weeks, apiBase, currentWeek])
+  
+  // Refresh current week data
+  const refreshCurrentWeek = async () => {
+    if (currentWeek) {
+      try {
+        const res = await axios.get(`${apiBase}/week/${currentWeek}`, {
+          params: { _t: Date.now() }
+        })
+        setAllWeeksData(prev => ({
+          ...prev,
+          [currentWeek]: res.data
+        }))
+        if (selectedWeek === currentWeek) {
+          setWeekData(res.data)
+        }
+      } catch (err) {
+        console.error(`Error refreshing current week:`, err)
+      }
+    }
+  }
 
   // Update selected week data
   useEffect(() => {
@@ -239,6 +275,16 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             ))}
           </select>
         </div>
+        {selectedWeek === currentWeek && (
+          <button
+            onClick={refreshCurrentWeek}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+            title="Refresh current week data"
+          >
+            🔄 Refresh
+          </button>
+        )}
+      </div>
 
         <div className="bg-gray-800 p-4 rounded-lg">
           <label className="block mb-2 font-semibold">Select Team:</label>

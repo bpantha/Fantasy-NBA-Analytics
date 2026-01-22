@@ -32,12 +32,20 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
   useEffect(() => {
     fetchPredictions()
   }, [])
+  
+  // Refresh predictions - always fetches fresh data
+  const handleRefresh = () => {
+    fetchPredictions()
+  }
 
   const fetchPredictions = async () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get(`${apiBase}/predictions`)
+      // Always fetch fresh data - add cache-busting parameter
+      const response = await axios.get(`${apiBase}/predictions`, {
+        params: { _t: Date.now() }
+      })
       setPredictions(response.data.predictions || [])
       if (response.data.predictions && response.data.predictions.length > 0) {
         setSelectedMatchup(0)
