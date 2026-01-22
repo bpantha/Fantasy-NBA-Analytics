@@ -28,10 +28,11 @@ ESPN_S2 = os.getenv('ESPN_S2', '')
 ESPN_SWID = os.getenv('ESPN_SWID', '')
 
 def get_league_instance():
-    """Get initialized ESPN League instance"""
+    """Get initialized ESPN League instance - always create fresh instance for current data"""
     from espn_api.basketball import League
     if ESPN_S2 and ESPN_SWID:
-        return League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID)
+        # Always create a new instance to ensure fresh data (no caching)
+        return League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID, fetch_league=True)
     return None
 
 def get_current_week():
