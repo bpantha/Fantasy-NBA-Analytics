@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -86,12 +87,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 def export_week_analytics(league, matchup_period):
     """Export analytics for a specific week to JSON"""
     try:
-        # For current week, ensure we get the absolute latest data
+        # For current week, use current_week as scoring_period (league is already fresh from get_league_instance)
         if matchup_period == league.currentMatchupPeriod:
-            # Refresh league to get latest scoring period
-            league.fetch_league()
-            # Explicitly use current_week as scoring_period to ensure we get the latest data
-            # matchup_total=True ensures we get cumulative stats for the entire matchup
             current_scoring_period = league.current_week
             box_scores = league.box_scores(matchup_period=matchup_period, scoring_period=current_scoring_period, matchup_total=True)
         else:
@@ -201,27 +198,34 @@ def export_week_analytics(league, matchup_period):
             week_monday, week_sunday = _get_week_monday_sunday()
             sp_list = _get_scoring_periods_in_week_range(league, matchup_period, week_monday, week_sunday)
             if sp_list:
-                for sp in sp_list:
+                def _fetch_sp(sp):
                     try:
-                        sp_scores = league.box_scores(matchup_period=matchup_period, scoring_period=sp, matchup_total=False)
+                        return league.box_scores(matchup_period=matchup_period, scoring_period=sp, matchup_total=False)
                     except Exception:
-                        continue
-                    for bs in sp_scores or []:
-                        ht, at = bs.home_team, bs.away_team
-                        if isinstance(ht, int):
-                            ht = league.get_team_data(ht)
-                        if isinstance(at, int):
-                            at = league.get_team_data(at)
-                        if not (hasattr(bs, 'home_lineup') and hasattr(bs, 'away_lineup')):
+                        return None
+                max_workers = min(8, len(sp_list))
+                with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                    futures = [ex.submit(_fetch_sp, sp) for sp in sp_list]
+                    for fut in as_completed(futures):
+                        sp_scores = fut.result()
+                        if not sp_scores:
                             continue
-                        hm, hg = _add_from_lineup(bs.home_lineup)
-                        am, ag = _add_from_lineup(bs.away_lineup)
-                        team_minutes[ht] += hm
-                        team_minutes[at] += am
-                        team_games_played[ht] += hg
-                        team_games_played[at] += ag
-                        matchup_minutes[(ht, at)] = matchup_minutes.get((ht, at), 0) + hm
-                        matchup_minutes[(at, ht)] = matchup_minutes.get((at, ht), 0) + am
+                        for bs in sp_scores:
+                            ht, at = bs.home_team, bs.away_team
+                            if isinstance(ht, int):
+                                ht = league.get_team_data(ht)
+                            if isinstance(at, int):
+                                at = league.get_team_data(at)
+                            if not (hasattr(bs, 'home_lineup') and hasattr(bs, 'away_lineup')):
+                                continue
+                            hm, hg = _add_from_lineup(bs.home_lineup)
+                            am, ag = _add_from_lineup(bs.away_lineup)
+                            team_minutes[ht] += hm
+                            team_minutes[at] += am
+                            team_games_played[ht] += hg
+                            team_games_played[at] += ag
+                            matchup_minutes[(ht, at)] = matchup_minutes.get((ht, at), 0) + hm
+                            matchup_minutes[(at, ht)] = matchup_minutes.get((at, ht), 0) + am
             else:
                 # Fallback: use existing box_scores with health/played filters
                 for box_score in box_scores:

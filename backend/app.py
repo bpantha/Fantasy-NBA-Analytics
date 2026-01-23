@@ -36,13 +36,24 @@ YEAR = int(os.getenv('YEAR', '2026'))
 ESPN_S2 = os.getenv('ESPN_S2', '')
 ESPN_SWID = os.getenv('ESPN_SWID', '')
 
-def get_league_instance():
-    """Get initialized ESPN League instance - always create fresh instance for current data"""
+_league_cache = None
+_league_cache_ts = 0.0
+_LEAGUE_CACHE_TTL = 60  # seconds
+
+def get_league_instance(use_cache=True):
+    """Get initialized ESPN League instance. Uses in-memory cache (60s TTL) when use_cache=True to speed up repeated live requests."""
+    import time
     from espn_api.basketball import League
-    if ESPN_S2 and ESPN_SWID:
-        # Always create a new instance to ensure fresh data (no caching)
-        return League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID, fetch_league=True)
-    return None
+    if not (ESPN_S2 and ESPN_SWID):
+        return None
+    if use_cache and _league_cache is not None and (time.time() - _league_cache_ts) < _LEAGUE_CACHE_TTL:
+        return _league_cache
+    league = League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID, fetch_league=True)
+    if use_cache:
+        global _league_cache, _league_cache_ts
+        _league_cache = league
+        _league_cache_ts = time.time()
+    return league
 
 def get_current_week(fetch_live=False):
     """Get current matchup period - only fetches live if fetch_live=True"""
@@ -81,57 +92,39 @@ def get_available_weeks():
 @app.route('/api/week/<int:week>', methods=['GET'])
 def get_week_data(week):
     """Get analytics data for a specific week - only fetches live data when live=true parameter is provided"""
-    # Check if live data is explicitly requested
     fetch_live = request.args.get('live', 'false').lower() == 'true'
-    
-    # Get current week (without fetching live unless requested)
-    current_week = get_current_week(fetch_live=fetch_live)
-    
-    # Only fetch live data if explicitly requested via parameter
-    if fetch_live and week == current_week:
-        try:
-            # Import here to avoid circular imports
-            import importlib.util
-            export_path = Path(__file__).parent / 'export_analytics.py'
-            spec = importlib.util.spec_from_file_location("export_analytics", export_path)
-            export_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(export_module)
-            
-            league = get_league_instance()
-            if not league:
-                # Fallback to historical data if API unavailable
-                file_path = DATA_DIR / f'week{week}.json'
-                if file_path.exists():
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    return jsonify(data)
-                return jsonify({'error': f'Week {week} data not found and API unavailable'}), 404
-            
-            # Fetch live data
-            live_data = export_module.export_week_analytics(league, week)
-            if live_data:
-                return jsonify(live_data)
-            else:
-                # Fallback to historical if live fetch fails
-                file_path = DATA_DIR / f'week{week}.json'
-                if file_path.exists():
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    return jsonify(data)
-                return jsonify({'error': f'Week {week} data not found'}), 404
-        except Exception as e:
-            print(f"Error fetching live data for week {week}: {e}")
-            import traceback
-            traceback.print_exc()
-            # Fallback to historical data
+
+    # Live path: create League once and reuse (avoids get_current_week + second get_league_instance)
+    if fetch_live:
+        league = get_league_instance()
+        if league and week == league.currentMatchupPeriod:
+            try:
+                import importlib.util
+                export_path = Path(__file__).parent / 'export_analytics.py'
+                spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+                export_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(export_module)
+                live_data = export_module.export_week_analytics(league, week)
+                if live_data:
+                    return jsonify(live_data)
+            except Exception as e:
+                print(f"Error fetching live data for week {week}: {e}")
+                import traceback
+                traceback.print_exc()
             file_path = DATA_DIR / f'week{week}.json'
             if file_path.exists():
                 with open(file_path, 'r') as f:
-                    data = json.load(f)
-                return jsonify(data)
+                    return jsonify(json.load(f))
             return jsonify({'error': f'Week {week} data not found'}), 404
-    
-    # For historical weeks, use exported JSON files
+        if not league:
+            file_path = DATA_DIR / f'week{week}.json'
+            if file_path.exists():
+                with open(file_path, 'r') as f:
+                    return jsonify(json.load(f))
+            return jsonify({'error': f'Week {week} data not found and API unavailable'}), 404
+        # league exists but week != current_week: fall through to file
+
+    # Historical weeks or fallback: use exported JSON files
     file_path = DATA_DIR / f'week{week}.json'
     if not file_path.exists():
         return jsonify({'error': f'Week {week} data not found'}), 404
