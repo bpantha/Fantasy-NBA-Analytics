@@ -26,6 +26,26 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
 
+@app.after_request
+def add_cache_control(response):
+    """Set Cache-Control on API JSON responses. Live/fresh endpoints: 60s. Historical/static: 5 min."""
+    if response.status_code != 200 or not request.path.startswith('/api/'):
+        return response
+    live = request.args.get('live', 'false').lower() == 'true'
+    if request.path == '/api/health':
+        response.headers['Cache-Control'] = 'no-store'
+    elif request.path in ('/api/weeks', '/api/league/summary') or request.path.startswith('/api/players') or request.path.startswith('/api/teams') or request.path.startswith('/api/compare/'):
+        response.headers['Cache-Control'] = 'public, max-age=300'
+    elif request.path.startswith('/api/week/'):
+        response.headers['Cache-Control'] = 'private, max-age=60' if live else 'public, max-age=300'
+    elif request.path in ('/api/league/roster-totals', '/api/league/upcoming-matchups'):
+        response.headers['Cache-Control'] = 'private, max-age=300'
+    elif request.path == '/api/league/stats':
+        response.headers['Cache-Control'] = 'private, max-age=60' if live else 'public, max-age=300'
+    elif request.path in ('/api/predictions', '/api/predictions/matchups'):
+        response.headers['Cache-Control'] = 'private, max-age=60'
+    return response
+
 # Path to analytics data
 DATA_DIR = Path(__file__).parent.parent / 'data' / 'analytics'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -178,6 +198,71 @@ def _aggregate_roster_totals(players_with_avgs):
     totals['FT%'] = (ftm / fta) if (fta and fta > 0) else 0.0
     return totals
 
+
+def _add_archetypes(teams_list):
+    """Add punt_cats and archetype to each team based on roster_totals ranks. Lower rank = better.
+    TO: lower value = better. Others: higher value = better. Punt = 1–2 worst-ranked cats."""
+    if not teams_list:
+        return
+    n = len(teams_list)
+    ranks = {}
+    for cat in STANDARD_CATS:
+        if cat == 'TO':
+            sorted_teams = sorted(teams_list, key=lambda t: t.get('roster_totals', {}).get(cat, 0))
+        else:
+            sorted_teams = sorted(teams_list, key=lambda t: t.get('roster_totals', {}).get(cat, 0), reverse=True)
+        for r, t in enumerate(sorted_teams, 1):
+            name = t.get('name', '')
+            if name not in ranks:
+                ranks[name] = {}
+            ranks[name][cat] = r
+    for t in teams_list:
+        r = ranks.get(t.get('name', ''), {})
+        cat_ranks = [(c, r.get(c, n + 1)) for c in STANDARD_CATS]
+        cat_ranks.sort(key=lambda x: -x[1])
+        worst = cat_ranks[0] if cat_ranks else (None, n + 1)
+        second = cat_ranks[1] if len(cat_ranks) > 1 else None
+        punt_cats = [worst[0]] if worst[0] else []
+        if second and second[0] and second[1] >= max(1, n - 1):
+            punt_cats.append(second[0])
+        punt_cats = sorted(set(punt_cats))
+        t['punt_cats'] = punt_cats
+        if len(punt_cats) == 2:
+            t['archetype'] = f"Punting {punt_cats[0]} & {punt_cats[1]}"
+        elif len(punt_cats) == 1:
+            t['archetype'] = f"Punting {punt_cats[0]}"
+        else:
+            t['archetype'] = 'Balanced'
+
+
+def _build_roster_teams_from_league(league):
+    """Build teams list with roster_totals and archetypes from a League instance."""
+    teams_list = []
+    for team in (getattr(league, 'teams', None) or []):
+        players_with_avgs = []
+        for p in getattr(team, 'roster', []) or []:
+            st = getattr(p, 'stats', None) or {}
+            stat_block = st.get(f'{league.year}_total', {}) or {}
+            a = _player_season_avg(stat_block)
+            if a:
+                players_with_avgs.append(a)
+        roster_totals = _aggregate_roster_totals(players_with_avgs)
+        logo_url = getattr(team, 'logo_url', '') or ''
+        if logo_url:
+            if logo_url.startswith('//'):
+                logo_url = f'https:{logo_url}'
+            elif logo_url.startswith('/'):
+                logo_url = f'https://a.espncdn.com{logo_url}'
+        teams_list.append({
+            'name': getattr(team, 'team_name', str(getattr(team, 'team_id', ''))),
+            'team_id': getattr(team, 'team_id', 0),
+            'logo_url': logo_url or None,
+            'roster_totals': roster_totals,
+        })
+    _add_archetypes(teams_list)
+    return teams_list
+
+
 @app.route('/api/league/roster-totals', methods=['GET'])
 def get_roster_totals():
     """Roster category totals per team: sum of each player's season average (e.g. 20 ppg + 21 ppg = 41 PTS)."""
@@ -186,27 +271,7 @@ def get_roster_totals():
         year = YEAR
         teams_list = []
         if league and league.teams:
-            for team in league.teams:
-                players_with_avgs = []
-                for p in getattr(team, 'roster', []) or []:
-                    st = getattr(p, 'stats', None) or {}
-                    stat_block = st.get(f'{league.year}_total', {}) or {}
-                    a = _player_season_avg(stat_block)
-                    if a:
-                        players_with_avgs.append(a)
-                roster_totals = _aggregate_roster_totals(players_with_avgs)
-                logo_url = getattr(team, 'logo_url', '') or ''
-                if logo_url:
-                    if logo_url.startswith('//'):
-                        logo_url = f'https:{logo_url}'
-                    elif logo_url.startswith('/'):
-                        logo_url = f'https://a.espncdn.com{logo_url}'
-                teams_list.append({
-                    'name': getattr(team, 'team_name', str(getattr(team, 'team_id', ''))),
-                    'team_id': getattr(team, 'team_id', 0),
-                    'logo_url': logo_url or None,
-                    'roster_totals': roster_totals,
-                })
+            teams_list = _build_roster_teams_from_league(league)
             return jsonify({'teams': teams_list, 'season': league.year})
         # Fallback: aggregate from players.json
         players_path = DATA_DIR / 'players.json'
@@ -238,12 +303,60 @@ def get_roster_totals():
                 'logo_url': info.get('logo_url'),
                 'roster_totals': _aggregate_roster_totals(lst),
             })
+        _add_archetypes(teams_list)
         return jsonify({'teams': teams_list, 'season': year})
     except Exception as e:
         print(f"Error in /api/league/roster-totals: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/league/upcoming-matchups', methods=['GET'])
+def get_upcoming_matchups():
+    """Current week matchups with category-by-category preview (favored by roster totals)."""
+    try:
+        league = get_league_instance()
+        if not league:
+            return jsonify({'error': 'League API unavailable'}), 503
+        roster_teams = _build_roster_teams_from_league(league)
+        by_name = {t['name']: t.get('roster_totals', {}) for t in roster_teams}
+
+        league.fetch_league()
+        current = league.current_week
+        box_scores = league.box_scores(matchup_period=league.currentMatchupPeriod, scoring_period=current, matchup_total=True)
+        if not box_scores:
+            return jsonify({'matchups': []})
+
+        matchups = []
+        for bs in box_scores:
+            ht, at = bs.home_team, bs.away_team
+            if isinstance(ht, int):
+                ht = league.get_team_data(ht)
+            if isinstance(at, int):
+                at = league.get_team_data(at)
+            t1 = ht.team_name if hasattr(ht, 'team_name') else str(ht)
+            t2 = at.team_name if hasattr(at, 'team_name') else str(at)
+            r1, r2 = by_name.get(t1, {}), by_name.get(t2, {})
+
+            cats = []
+            for c in STANDARD_CATS:
+                v1 = r1.get(c, 0) or 0
+                v2 = r2.get(c, 0) or 0
+                if c == 'TO':
+                    favored = 'team1' if v1 < v2 else ('team2' if v2 < v1 else 'toss')
+                else:
+                    favored = 'team1' if v1 > v2 else ('team2' if v2 > v1 else 'toss')
+                cats.append({'category': c, 'team1_value': v1, 'team2_value': v2, 'favored': favored})
+            matchups.append({'team1': t1, 'team2': t2, 'categories': cats})
+
+        return jsonify({'matchups': matchups})
+    except Exception as e:
+        print(f"Error in /api/league/upcoming-matchups: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/players', methods=['GET'])
 def get_players():
@@ -388,7 +501,8 @@ def get_league_stats():
         'current_streak': 0,
         'longest_streak': 0,
         'recent_performance': [],
-        'opponent_matchups': defaultdict(list)  # Track best/worst matchups
+        'opponent_matchups': defaultdict(list),  # Track best/worst matchups
+        'close_wins': 0, 'close_losses': 0, 'blowout_wins': 0, 'blowout_losses': 0  # Clutch/close vs blowouts
     })
     
     # Get current week from league summary to exclude it from streaks
@@ -429,19 +543,31 @@ def get_league_stats():
             opponent_name = team.get('opponent_name', '')
             if opponent_name and not is_current_week:
                 opponent_details = team.get('matchup_details', {}).get(opponent_name, {})
-                if opponent_details.get('won', 0) >= 5:
+                won = opponent_details.get('won', 0)
+                lost = opponent_details.get('lost', 0)
+                if won >= 5:
                     stats['scheduled_opponent_wins'].append(1)
                     stats['scheduled_opponent_weeks'].append(week_num)
                 else:
                     stats['scheduled_opponent_wins'].append(0)
                     stats['scheduled_opponent_weeks'].append(week_num)
                 
+                # Clutch/close (5-4, 6-3, 4-5, 3-6) vs blowouts (7+ or 0-2)
+                if (won, lost) in ((5, 4), (6, 3)):
+                    stats['close_wins'] += 1
+                elif (won, lost) in ((4, 5), (3, 6)):
+                    stats['close_losses'] += 1
+                elif won >= 7:
+                    stats['blowout_wins'] += 1
+                elif lost >= 7:
+                    stats['blowout_losses'] += 1
+                
                 # Track opponent matchup record
                 stats['opponent_matchups'][opponent_name].append({
                     'week': week_num,
-                    'won': opponent_details.get('won', 0),
-                    'lost': opponent_details.get('lost', 0),
-                    'result': 'win' if opponent_details.get('won', 0) >= 5 else 'loss'
+                    'won': won,
+                    'lost': lost,
+                    'result': 'win' if won >= 5 else 'loss'
                 })
             
             # Track best week
@@ -530,8 +656,18 @@ def get_league_stats():
             'total_teams_beaten': stats['total_teams_beaten'],
             'total_minutes': round(stats['total_minutes'], 1),
             'efficiency': round(overall_wins / stats['total_minutes'] * 1000, 3) if stats['total_minutes'] > 0 else 0,
-            'logo_url': logo_url
+            'logo_url': logo_url,
+            'close_wins': stats['close_wins'],
+            'close_losses': stats['close_losses'],
+            'blowout_wins': stats['blowout_wins'],
+            'blowout_losses': stats['blowout_losses'],
         })
+    
+    # Close matchups / clutch: leaders
+    close_win_leaders = sorted([t for t in teams_list if t['close_wins'] > 0], key=lambda x: x['close_wins'], reverse=True)[:5]
+    close_loss_most = sorted([t for t in teams_list if t['close_losses'] > 0], key=lambda x: x['close_losses'], reverse=True)[:5]
+    blowout_win_most = sorted([t for t in teams_list if t['blowout_wins'] > 0], key=lambda x: x['blowout_wins'], reverse=True)[:5]
+    blowout_loss_most = sorted([t for t in teams_list if t['blowout_losses'] > 0], key=lambda x: x['blowout_losses'], reverse=True)[:5]
     
     # Sort and find leaders
     results = {
@@ -729,6 +865,12 @@ def get_league_stats():
     
     # Add teams_list to results
     results['teams_list'] = teams_list
+    results['close_matchups'] = {
+        'close_win_leaders': close_win_leaders,
+        'close_loss_most': close_loss_most,
+        'blowout_win_most': blowout_win_most,
+        'blowout_loss_most': blowout_loss_most,
+    }
     
     # Add category wins by team for comparison modal
     category_wins_by_team = {}

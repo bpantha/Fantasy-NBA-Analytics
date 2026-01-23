@@ -79,7 +79,17 @@ interface LeagueStats {
     total_minutes: number
     efficiency: number
     logo_url?: string
+    close_wins?: number
+    close_losses?: number
+    blowout_wins?: number
+    blowout_losses?: number
   }>
+  close_matchups?: {
+    close_win_leaders: Array<{ name: string; close_wins: number }>
+    close_loss_most: Array<{ name: string; close_losses: number }>
+    blowout_win_most: Array<{ name: string; blowout_wins: number }>
+    blowout_loss_most: Array<{ name: string; blowout_losses: number }>
+  }
 }
 
 interface CurrentWeekTeam {
@@ -117,6 +127,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const currentWeek = summary?.current_matchup_period ?? null
   const weekKey = currentWeek ? `${apiBase}/week/${currentWeek}?live=true` : null
   const { data: currentWeekData, error: errorCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
+  const { data: upcomingData } = useSWR<{ matchups: Array<{ team1: string; team2: string; categories: Array<{ category: string; team1_value: number; team2_value: number; favored: string }> }> }>(`${apiBase}/league/upcoming-matchups`)
 
   const loading = loadingStats
   const loadingCurrentWeek = !!currentWeek && !currentWeekData && !errorCurrentWeek
@@ -394,6 +405,35 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       {/* Rest of content - only show after current week data is loaded */}
       {currentWeekData && currentWeek && (
         <>
+        {/* Upcoming Matchup Previews */}
+        {upcomingData?.matchups && upcomingData.matchups.length > 0 && (
+          <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+            <h2 className="text-xl md:text-2xl font-bold mb-4">🎯 This Week&apos;s Matchup Previews</h2>
+            <p className="text-xs md:text-sm text-gray-400 mb-4">Category favor based on roster totals (season avg). Favored = better projected total.</p>
+            <div className="space-y-4">
+              {upcomingData.matchups.map((m, idx) => (
+                <div key={idx} className="bg-gray-700 p-3 md:p-4 rounded-lg">
+                  <h3 className="font-semibold mb-2">{m.team1} vs {m.team2}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {m.categories.map((c) => (
+                      <span
+                        key={c.category}
+                        className={`px-2 py-1 rounded text-xs md:text-sm ${
+                          c.favored === 'toss' ? 'bg-gray-600 text-gray-300' :
+                          c.favored === 'team1' ? 'bg-green-800 text-green-200' : 'bg-blue-800 text-blue-200'
+                        }`}
+                        title={`${c.category}: ${c.team1_value} vs ${c.team2_value}`}
+                      >
+                        {c.category} → {c.favored === 'toss' ? 'Toss' : c.favored === 'team1' ? m.team1 : m.team2}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Streaks & Trends KPI Bar */}
         {stats.streaks_trends && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
@@ -440,6 +480,72 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           </div>
         </section>
       )}
+
+        {/* Clutch & Close Matchups */}
+        {stats.close_matchups && (
+          <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+            <h2 className="text-xl md:text-2xl font-bold mb-4">⚡ Clutch & Close vs Blowouts</h2>
+            <p className="text-xs md:text-sm text-gray-400 mb-4">Close = 5-4 or 6-3. Blowout = 7-2 or worse. Counts scheduled opponent games only (excl. current week).</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <div>
+                <h3 className="text-sm md:text-base font-semibold mb-2 text-green-400">Close wins</h3>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {(stats.close_matchups.close_win_leaders || []).map((t, i) => (
+                    <div key={i} className="bg-gray-700 p-2 rounded flex justify-between">
+                      <span className="text-sm truncate">{(t as { name?: string }).name}</span>
+                      <span className="font-bold">{(t as { close_wins?: number }).close_wins ?? 0}</span>
+                    </div>
+                  ))}
+                  {(!stats.close_matchups.close_win_leaders || stats.close_matchups.close_win_leaders.length === 0) && (
+                    <p className="text-gray-500 text-sm">—</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm md:text-base font-semibold mb-2 text-amber-400">Close losses</h3>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {(stats.close_matchups.close_loss_most || []).map((t, i) => (
+                    <div key={i} className="bg-gray-700 p-2 rounded flex justify-between">
+                      <span className="text-sm truncate">{(t as { name?: string }).name}</span>
+                      <span className="font-bold">{(t as { close_losses?: number }).close_losses ?? 0}</span>
+                    </div>
+                  ))}
+                  {(!stats.close_matchups.close_loss_most || stats.close_matchups.close_loss_most.length === 0) && (
+                    <p className="text-gray-500 text-sm">—</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm md:text-base font-semibold mb-2 text-blue-400">Blowout wins</h3>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {(stats.close_matchups.blowout_win_most || []).map((t, i) => (
+                    <div key={i} className="bg-gray-700 p-2 rounded flex justify-between">
+                      <span className="text-sm truncate">{(t as { name?: string }).name}</span>
+                      <span className="font-bold">{(t as { blowout_wins?: number }).blowout_wins ?? 0}</span>
+                    </div>
+                  ))}
+                  {(!stats.close_matchups.blowout_win_most || stats.close_matchups.blowout_win_most.length === 0) && (
+                    <p className="text-gray-500 text-sm">—</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm md:text-base font-semibold mb-2 text-red-400">Blowout losses</h3>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {(stats.close_matchups.blowout_loss_most || []).map((t, i) => (
+                    <div key={i} className="bg-gray-700 p-2 rounded flex justify-between">
+                      <span className="text-sm truncate">{(t as { name?: string }).name}</span>
+                      <span className="font-bold">{(t as { blowout_losses?: number }).blowout_losses ?? 0}</span>
+                    </div>
+                  ))}
+                  {(!stats.close_matchups.blowout_loss_most || stats.close_matchups.blowout_loss_most.length === 0) && (
+                    <p className="text-gray-500 text-sm">—</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
       {/* League Standings Table */}
       {stats.teams_list && stats.teams_list.length > 0 && (
