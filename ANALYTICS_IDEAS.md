@@ -40,7 +40,6 @@
 6. **Category Matchup Analysis**
    - Which categories you're most likely to win/lose against each opponent
    - Category strengths vs specific teams
-   - "Punt strategy" effectiveness (teams that punt certain categories)
 
 ### Player Performance Analytics
 7. **Player Value Analysis**

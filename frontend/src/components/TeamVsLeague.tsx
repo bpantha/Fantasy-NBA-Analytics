@@ -42,8 +42,6 @@ interface RosterTotalsTeam {
   team_id: number
   logo_url?: string | null
   roster_totals: Record<string, number>
-  archetype?: string
-  punt_cats?: string[]
 }
 
 interface TeamName {
@@ -364,20 +362,6 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             <p className="text-xs md:text-sm text-gray-400 mb-4">
               Sum of each player&apos;s season average (e.g. 20 ppg + 21 ppg = 41 PTS). Compare highlights green when you&apos;re better, red when worse (for TO, lower is better).
             </p>
-            {(selectedRoster?.archetype || (compareTeam && compareRoster?.archetype)) && (
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                {selectedRoster?.archetype && (
-                  <span className="px-2 py-1 bg-purple-700/50 text-purple-200 rounded text-sm" title={selectedRoster?.punt_cats?.length ? `Weak: ${selectedRoster.punt_cats.join(', ')}` : undefined}>
-                    <strong>{selectedTeam}</strong>: {selectedRoster.archetype}
-                  </span>
-                )}
-                {compareTeam && compareRoster?.archetype && (
-                  <span className="px-2 py-1 bg-gray-600 text-gray-200 rounded text-sm" title={compareRoster?.punt_cats?.length ? `Weak: ${compareRoster.punt_cats.join(', ')}` : undefined}>
-                    <strong>{compareTeam}</strong>: {compareRoster.archetype}
-                  </span>
-                )}
-              </div>
-            )}
             {loadingRosterTotals && (
               <div className="flex items-center gap-2 text-gray-400 py-4">
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-500 border-t-transparent" />

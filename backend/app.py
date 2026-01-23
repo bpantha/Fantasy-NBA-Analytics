@@ -199,44 +199,8 @@ def _aggregate_roster_totals(players_with_avgs):
     return totals
 
 
-def _add_archetypes(teams_list):
-    """Add punt_cats and archetype to each team based on roster_totals ranks. Lower rank = better.
-    TO: lower value = better. Others: higher value = better. Punt = 1–2 worst-ranked cats."""
-    if not teams_list:
-        return
-    n = len(teams_list)
-    ranks = {}
-    for cat in STANDARD_CATS:
-        if cat == 'TO':
-            sorted_teams = sorted(teams_list, key=lambda t: t.get('roster_totals', {}).get(cat, 0))
-        else:
-            sorted_teams = sorted(teams_list, key=lambda t: t.get('roster_totals', {}).get(cat, 0), reverse=True)
-        for r, t in enumerate(sorted_teams, 1):
-            name = t.get('name', '')
-            if name not in ranks:
-                ranks[name] = {}
-            ranks[name][cat] = r
-    for t in teams_list:
-        r = ranks.get(t.get('name', ''), {})
-        cat_ranks = [(c, r.get(c, n + 1)) for c in STANDARD_CATS]
-        cat_ranks.sort(key=lambda x: -x[1])
-        worst = cat_ranks[0] if cat_ranks else (None, n + 1)
-        second = cat_ranks[1] if len(cat_ranks) > 1 else None
-        punt_cats = [worst[0]] if worst[0] else []
-        if second and second[0] and second[1] >= max(1, n - 1):
-            punt_cats.append(second[0])
-        punt_cats = sorted(set(punt_cats))
-        t['punt_cats'] = punt_cats
-        if len(punt_cats) == 2:
-            t['archetype'] = f"Punting {punt_cats[0]} & {punt_cats[1]}"
-        elif len(punt_cats) == 1:
-            t['archetype'] = f"Punting {punt_cats[0]}"
-        else:
-            t['archetype'] = 'Balanced'
-
-
 def _build_roster_teams_from_league(league):
-    """Build teams list with roster_totals and archetypes from a League instance."""
+    """Build teams list with roster_totals from a League instance."""
     teams_list = []
     for team in (getattr(league, 'teams', None) or []):
         players_with_avgs = []
@@ -259,7 +223,6 @@ def _build_roster_teams_from_league(league):
             'logo_url': logo_url or None,
             'roster_totals': roster_totals,
         })
-    _add_archetypes(teams_list)
     return teams_list
 
 
@@ -303,7 +266,6 @@ def get_roster_totals():
                 'logo_url': info.get('logo_url'),
                 'roster_totals': _aggregate_roster_totals(lst),
             })
-        _add_archetypes(teams_list)
         return jsonify({'teams': teams_list, 'season': year})
     except Exception as e:
         print(f"Error in /api/league/roster-totals: {e}")
@@ -324,20 +286,21 @@ def get_upcoming_matchups():
 
         league.fetch_league()
         next_period = league.currentMatchupPeriod + 1
-        # For a future week, omit scoring_period; box_scores returns matchup pairings
-        box_scores = league.box_scores(matchup_period=next_period, matchup_total=True)
-        if not box_scores:
+        # scoreboard(matchupPeriod) uses mMatchup and filters schedule by matchupPeriodId;
+        # it supports future periods. box_scores only uses our period when it's in the past.
+        matchups_raw = league.scoreboard(matchupPeriod=next_period)
+        if not matchups_raw:
             return jsonify({'matchups': [], 'matchup_period': next_period})
 
         matchups = []
-        for bs in box_scores:
-            ht, at = bs.home_team, bs.away_team
+        for m in matchups_raw:
+            ht, at = m.home_team, m.away_team
             if isinstance(ht, int):
                 ht = league.get_team_data(ht)
             if isinstance(at, int):
                 at = league.get_team_data(at)
-            t1 = ht.team_name if hasattr(ht, 'team_name') else str(ht)
-            t2 = at.team_name if hasattr(at, 'team_name') else str(at)
+            t1 = ht.team_name if (ht and hasattr(ht, 'team_name')) else str(ht or '')
+            t2 = at.team_name if (at and hasattr(at, 'team_name')) else str(at or '')
             r1, r2 = by_name.get(t1, {}), by_name.get(t2, {})
 
             cats = []
