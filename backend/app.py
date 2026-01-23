@@ -42,6 +42,7 @@ _LEAGUE_CACHE_TTL = 60  # seconds
 
 def get_league_instance(use_cache=True):
     """Get initialized ESPN League instance. Uses in-memory cache (60s TTL) when use_cache=True to speed up repeated live requests."""
+    global _league_cache, _league_cache_ts
     import time
     from espn_api.basketball import League
     if not (ESPN_S2 and ESPN_SWID):
@@ -50,7 +51,6 @@ def get_league_instance(use_cache=True):
         return _league_cache
     league = League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID, fetch_league=True)
     if use_cache:
-        global _league_cache, _league_cache_ts
         _league_cache = league
         _league_cache_ts = time.time()
     return league
