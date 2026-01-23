@@ -151,7 +151,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       })
   }, [apiBase])
 
-  if (loading) {
+  // Show loading state while fetching initial data or current week data
+  if (loading || loadingCurrentWeek) {
     return (
       <div className="flex justify-center items-center py-20">
         <div className="text-center">
@@ -166,6 +167,18 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     return (
       <div className="text-center py-20 text-red-400">
         Error loading league statistics. Please try again later.
+      </div>
+    )
+  }
+
+  // Don't show other content until current week data is loaded
+  if (!currentWeekData || !currentWeek) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading current week data...</p>
+        </div>
       </div>
     )
   }
@@ -277,128 +290,120 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   return (
     <div className="space-y-6">
       {/* Current Week Category Dominators KPIs */}
-      {currentWeekData && currentWeek && (
-        <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-          <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 Week {currentWeek} Category Dominators</h2>
-          {loadingCurrentWeek ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto mb-2"></div>
-              <p className="text-gray-400 text-sm">Loading current week data...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-              {categories.map(cat => {
-                const dominator = currentWeekCategoryDominators[cat]
-                if (!dominator) return null
-                
-                const emoji = categoryEmojis[cat] || '📊'
-                const displayValue = cat === 'FG%' || cat === 'FT%' 
-                  ? `${(dominator.value * 100).toFixed(1)}%`
-                  : cat === 'TO'
-                  ? dominator.value.toFixed(0)  // TO is a whole number
-                  : dominator.value.toFixed(1)
-                
-                return (
-                  <div key={cat} className="bg-gradient-to-br from-purple-600 to-purple-800 p-3 md:p-4 rounded-lg">
-                    <div className="text-center">
-                      <div className="text-2xl md:text-3xl mb-1">{emoji}</div>
-                      <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">{cat}</h3>
-                      <p className="text-sm md:text-base font-bold text-white truncate" title={dominator.team}>
-                        {dominator.team}
-                      </p>
-                      <p className="text-lg md:text-xl font-bold text-yellow-300 mt-1">{displayValue}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      )}
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+        <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 Week {currentWeek} Category Dominators</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+          {categories.map(cat => {
+            const dominator = currentWeekCategoryDominators[cat]
+            if (!dominator) return null
+            
+            const emoji = categoryEmojis[cat] || '📊'
+            const displayValue = cat === 'FG%' || cat === 'FT%' 
+              ? `${(dominator.value * 100).toFixed(1)}%`
+              : cat === 'TO'
+              ? dominator.value.toFixed(0)  // TO is a whole number
+              : dominator.value.toFixed(1)
+            
+            return (
+              <div key={cat} className="bg-gradient-to-br from-purple-600 to-purple-800 p-3 md:p-4 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl md:text-3xl mb-1">{emoji}</div>
+                  <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">{cat}</h3>
+                  <p className="text-sm md:text-base font-bold text-white truncate" title={dominator.team}>
+                    {dominator.team}
+                  </p>
+                  <p className="text-lg md:text-xl font-bold text-yellow-300 mt-1">{displayValue}</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
 
       {/* Current Week Team Performance Table */}
-      {currentWeekData && currentWeek && !loadingCurrentWeek && (
-        <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
-          <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Week {currentWeek} Team Performance</h2>
-          <div className="min-w-full">
-            <table className="w-full text-sm md:text-base">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Opponents Beaten</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Best Category</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentWeekTeamStats.map((teamStat, index) => (
-                  <tr 
-                    key={teamStat.team} 
-                    className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
-                    onClick={() => setSelectedTeam(teamStat.team)}
-                  >
-                    <td className="px-2 md:px-4 py-2 md:py-3">
-                      <div className="flex items-center gap-2 md:gap-3">
-                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {teamStat.logo_url ? (
-                            <img 
-                              src={teamStat.logo_url} 
-                              alt={teamStat.team}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const img = e.target as HTMLImageElement
-                                img.style.display = 'none'
-                                const parent = img.parentElement
-                                if (parent && !parent.querySelector('.logo-placeholder')) {
-                                  const placeholder = document.createElement('span')
-                                  placeholder.className = 'logo-placeholder text-xs md:text-sm font-bold text-gray-400'
-                                  placeholder.textContent = teamStat.team.charAt(0).toUpperCase()
-                                  parent.appendChild(placeholder)
-                                }
-                              }}
-                            />
-                          ) : (
-                            <span className="text-xs md:text-sm font-bold text-gray-400">
-                              {teamStat.team.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
-                          {teamStat.team}
-                        </span>
+      <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
+        <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Week {currentWeek} Team Performance</h2>
+        <div className="min-w-full">
+          <table className="w-full text-sm md:text-base">
+            <thead className="bg-gray-700">
+              <tr>
+                <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                <th className="px-2 md:px-4 py-2 md:py-3 text-left">Opponents Beaten</th>
+                <th className="px-2 md:px-4 py-2 md:py-3 text-left">Best Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentWeekTeamStats.map((teamStat, index) => (
+                <tr 
+                  key={teamStat.team} 
+                  className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
+                  onClick={() => setSelectedTeam(teamStat.team)}
+                >
+                  <td className="px-2 md:px-4 py-2 md:py-3">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {teamStat.logo_url ? (
+                          <img 
+                            src={teamStat.logo_url} 
+                            alt={teamStat.team}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement
+                              img.style.display = 'none'
+                              const parent = img.parentElement
+                              if (parent && !parent.querySelector('.logo-placeholder')) {
+                                const placeholder = document.createElement('span')
+                                placeholder.className = 'logo-placeholder text-xs md:text-sm font-bold text-gray-400'
+                                placeholder.textContent = teamStat.team.charAt(0).toUpperCase()
+                                parent.appendChild(placeholder)
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-xs md:text-sm font-bold text-gray-400">
+                            {teamStat.team.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
-                    </td>
-                    <td className="px-2 md:px-4 py-2 md:py-3">
-                      {teamStat.opponents_beaten.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 md:gap-2">
-                          {teamStat.opponents_beaten.map((opponent, idx) => (
-                            <span 
-                              key={idx} 
-                              className="px-2 py-1 bg-green-700 text-green-200 rounded text-xs md:text-sm"
-                            >
-                              {opponent}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-500 text-xs md:text-sm">None</span>
-                      )}
-                    </td>
-                    <td className="px-2 md:px-4 py-2 md:py-3">
-                      <span className="px-2 py-1 bg-blue-700 text-blue-200 rounded text-xs md:text-sm font-semibold">
-                        {categoryEmojis[teamStat.best_category] || ''} {teamStat.best_category}
+                      <span className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                        {teamStat.team}
                       </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs md:text-sm text-gray-400 mt-3">👆 Click on a team name to view details</p>
-        </section>
-      )}
+                    </div>
+                  </td>
+                  <td className="px-2 md:px-4 py-2 md:py-3">
+                    {teamStat.opponents_beaten.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 md:gap-2">
+                        {teamStat.opponents_beaten.map((opponent, idx) => (
+                          <span 
+                            key={idx} 
+                            className="px-2 py-1 bg-green-700 text-green-200 rounded text-xs md:text-sm"
+                          >
+                            {opponent}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-xs md:text-sm">None</span>
+                    )}
+                  </td>
+                  <td className="px-2 md:px-4 py-2 md:py-3">
+                    <span className="px-2 py-1 bg-blue-700 text-blue-200 rounded text-xs md:text-sm font-semibold">
+                      {categoryEmojis[teamStat.best_category] || ''} {teamStat.best_category}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs md:text-sm text-gray-400 mt-3">👆 Click on a team name to view details</p>
+      </section>
 
-      {/* Streaks & Trends KPI Bar */}
-      {stats.streaks_trends && (
+      {/* Rest of content - only show after current week data is loaded */}
+      {currentWeekData && currentWeek && (
+        <>
+        {/* Streaks & Trends KPI Bar */}
+        {stats.streaks_trends && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
           <h2 className="text-xl md:text-2xl font-bold mb-4">📈 Streaks & Trends</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
@@ -719,6 +724,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
         </div>
       </section>
+        </>
+      )}
 
       {/* Modals */}
       {selectedTeam && (
