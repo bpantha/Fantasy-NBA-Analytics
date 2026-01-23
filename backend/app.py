@@ -644,11 +644,59 @@ def get_league_stats():
     
     return jsonify(results)
 
+@app.route('/api/predictions/matchups', methods=['GET'])
+def get_matchup_list():
+    """Get list of current week matchups (team names only, no prediction data)"""
+    try:
+        league = get_league_instance()
+        if not league:
+            return jsonify({'error': 'League API unavailable'}), 503
+        
+        current_week = get_current_week(fetch_live=False)  # Don't fetch live, use cached
+        
+        # Get box scores to find matchups
+        league.fetch_league()
+        current_scoring_period = league.current_week
+        box_scores = league.box_scores(matchup_period=current_week, scoring_period=current_scoring_period, matchup_total=True)
+        
+        if not box_scores:
+            return jsonify({'matchups': []})
+        
+        matchups = []
+        for box_score in box_scores:
+            home_team = box_score.home_team
+            away_team = box_score.away_team
+            
+            if isinstance(home_team, int):
+                home_team = league.get_team_data(home_team)
+            if isinstance(away_team, int):
+                away_team = league.get_team_data(away_team)
+            
+            home_name = home_team.team_name if hasattr(home_team, 'team_name') else str(home_team)
+            away_name = away_team.team_name if hasattr(away_team, 'team_name') else str(away_team)
+            
+            matchups.append({
+                'team1': home_name,
+                'team2': away_name
+            })
+        
+        return jsonify({'matchups': matchups})
+    
+    except Exception as e:
+        print(f"Error getting matchup list: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions():
     """Get live matchup predictions for current week - only fetches live data when live=true parameter is provided"""
     # Check if live data is explicitly requested
     fetch_live = request.args.get('live', 'false').lower() == 'true'
+    
+    # Optional: filter by specific matchup
+    team1 = request.args.get('team1', '')
+    team2 = request.args.get('team2', '')
     
     if not fetch_live:
         return jsonify({'error': 'Live predictions require live=true parameter'}), 400
@@ -748,13 +796,18 @@ def get_predictions():
             total_diff = sum(abs(cat['team1_projected'] - cat['team2_projected']) for cat in categories)
             confidence = min(95, max(50, int(50 + (total_diff / 100) * 45)))
             
-            predictions.append({
-                'team1': home_name,
-                'team2': away_name,
-                'categories': categories,
-                'projected_score': projected_score,
-                'confidence': confidence
-            })
+            # Only include this prediction if no filter specified, or if it matches the filter
+            # Match must be exact: (team1=home AND team2=away) OR (team1=away AND team2=home)
+            if (not team1 and not team2) or \
+               ((team1.lower() == home_name.lower() and team2.lower() == away_name.lower()) or
+                (team1.lower() == away_name.lower() and team2.lower() == home_name.lower())):
+                predictions.append({
+                    'team1': home_name,
+                    'team2': away_name,
+                    'categories': categories,
+                    'projected_score': projected_score,
+                    'confidence': confidence
+                })
         
         return jsonify({'predictions': predictions})
     
@@ -836,20 +889,36 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
         # Only include scoring periods that are >= current
         remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
-        # If no remaining periods found, the matchup_ids might not be populated correctly
-        # Use fallback: assume remaining periods from current through end of week (typically 7 days)
-        # Matchups typically span about 7 scoring periods (one per day)
+        # If no remaining periods found, calculate based on matchup end date
+        # Matchups typically run Monday-Sunday, so we need to find when this matchup ends
         if not remaining_periods:
-            # Use next 7 scoring periods as a reasonable estimate for remaining matchup days
-            end_period = min(current_scoring_period + 7, league.finalScoringPeriod)
+            from datetime import datetime, timedelta
+            
+            # Calculate days until Sunday (matchups typically end Sunday)
+            today = datetime.now()
+            days_until_sunday = (6 - today.weekday()) % 7  # 0 = Monday, 6 = Sunday
+            if days_until_sunday == 0 and today.weekday() != 6:
+                days_until_sunday = 7  # If today is Sunday, count it; otherwise next Sunday
+            
+            # If today is Sunday, include today (0 days)
+            if today.weekday() == 6:
+                days_until_sunday = 0
+            
+            # Limit to maximum 3 days (Friday->Sunday = 2 days, Saturday->Sunday = 1 day, Sunday = 0 days)
+            # This prevents counting too many days if matchup_ids is wrong
+            days_remaining = min(days_until_sunday + 1, 3)  # +1 to include today
+            
+            # Only count periods from current through the calculated end
+            # Each scoring period typically represents one day
+            end_period = min(current_scoring_period + days_remaining - 1, league.finalScoringPeriod)
             remaining_periods = list(range(current_scoring_period, end_period + 1))
-            # If we have matchup scoring periods but they're all less than current, use them anyway
-            # (this handles the case where matchup_ids might have wrong data)
+            
+            # If we have matchup scoring periods but they're all less than current, 
+            # the matchup might have already ended - don't project future games
             if scoring_periods and all(sp < current_scoring_period for sp in scoring_periods):
-                # Use all future periods through the matchup end
-                matchup_end = max(scoring_periods)
-                if matchup_end >= current_scoring_period:
-                    remaining_periods = list(range(current_scoring_period, matchup_end + 1))
+                # Matchup appears to have ended, but we're still in it - use calculated days
+                # This handles edge cases where matchup_ids data is stale
+                pass
         
         # For each remaining scoring period, check which players have games
         for scoring_period in remaining_periods:

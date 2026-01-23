@@ -40,19 +40,25 @@ interface LeaderboardEntry {
   teams_beaten: string[]
 }
 
+interface TeamName {
+  name: string
+  team_id: number
+}
+
 export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const [weeks, setWeeks] = useState<number[]>([])
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<string>('')
+  const [teamNames, setTeamNames] = useState<TeamName[]>([]) // Team names for dropdown
   const [weekData, setWeekData] = useState<WeekData | null>(null)
   const [allWeeksData, setAllWeeksData] = useState<Record<number, WeekData>>({})
   const [loading, setLoading] = useState(false)
-  const [loadingWeek, setLoadingWeek] = useState<number | null>(null) // Track which week is loading
+  const [loadingWeek, setLoadingWeek] = useState<number | null>(null)
   const [graphData, setGraphData] = useState<Array<{ week: number; teamsBeaten: number }>>([])
   const [opponentMinutes, setOpponentMinutes] = useState<Record<string, { minutes: number; vsAvg: number; week: number }>>({})
-  const loadedWeeksRef = useRef<Set<number>>(new Set()) // Track loaded weeks to avoid reloading
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
 
-  // Load all available weeks
+  // Load weeks list and set default to latest (no data fetch)
   useEffect(() => {
     axios.get(`${apiBase}/weeks`)
       .then(res => {
@@ -65,108 +71,115 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       .catch(err => console.error('Error loading weeks:', err))
   }, [apiBase])
 
-  // Get current week from API
-  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
-  
+  // Load team names from league summary (no data fetch)
   useEffect(() => {
-    // Get current week from league summary
     axios.get(`${apiBase}/league/summary`)
       .then(res => {
         setCurrentWeek(res.data.current_matchup_period)
+        // Extract team names for dropdown
+        if (res.data.teams && Array.isArray(res.data.teams)) {
+          const names = res.data.teams.map((team: any) => ({
+            name: team.name,
+            team_id: team.team_id
+          }))
+          setTeamNames(names)
+        }
       })
-      .catch(err => console.error('Error loading current week:', err))
+      .catch(err => console.error('Error loading league summary:', err))
   }, [apiBase])
 
-  // Load data for selected week first, then load other weeks in background
+  // Load data when team is selected
   useEffect(() => {
-    if (selectedWeek) {
-      const loadWeekData = async () => {
-        try {
-          setLoading(true)
-          setLoadingWeek(selectedWeek) // Track which week is loading
-          // Clear current week data to show loading state
-          setWeekData(null)
-          
-          // Only fetch live data when current week is selected
-          const params: any = {}
-          if (selectedWeek === currentWeek) {
-            params.live = 'true'
-            params._t = Date.now() // Cache-busting
-          }
-          const res = await axios.get(`${apiBase}/week/${selectedWeek}`, { params })
-          setAllWeeksData(prev => ({
-            ...prev,
-            [selectedWeek]: res.data
-          }))
-          loadedWeeksRef.current.add(selectedWeek) // Mark as loaded
-          setWeekData(res.data)
-          // Set selected team if not already set
-          if (res.data.teams && res.data.teams.length > 0 && !selectedTeam) {
-            setSelectedTeam(res.data.teams[0].name)
-          }
-          setLoading(false)
-          setLoadingWeek(null)
-        } catch (err) {
-          console.error(`Error loading week ${selectedWeek}:`, err)
-          setLoading(false)
-          setLoadingWeek(null)
-        }
-      }
-      loadWeekData()
+    if (!selectedTeam || !selectedWeek) {
+      // Clear data if no team selected
+      setWeekData(null)
+      setAllWeeksData({})
+      setGraphData([])
+      setOpponentMinutes({})
+      return
     }
-  }, [selectedWeek, apiBase, currentWeek])
-  
-  // Load other weeks in background (non-blocking) - optimized with parallel loading
-  useEffect(() => {
-    if (weeks.length > 0 && selectedWeek) {
-      const loadOtherWeeks = async () => {
-        // Get weeks that haven't been loaded yet (using ref to avoid dependency issues)
-        const weeksToLoad = weeks.filter(week => 
-          week !== selectedWeek && !loadedWeeksRef.current.has(week)
-        )
-        
-        if (weeksToLoad.length === 0) return
-        
-        // Mark weeks as loading
-        weeksToLoad.forEach(week => loadedWeeksRef.current.add(week))
-        
-        // Load all weeks in parallel for faster loading
-        const weekPromises = weeksToLoad.map(async (week) => {
-          try {
-            const res = await axios.get(`${apiBase}/week/${week}`)
-            return { week, data: res.data }
-          } catch (err) {
-            console.error(`Error loading week ${week}:`, err)
-            loadedWeeksRef.current.delete(week) // Remove on error so it can retry
-            return null
-          }
-        })
-        
-        const results = await Promise.all(weekPromises)
-        const weeksData: Record<number, WeekData> = {}
-        
-        for (const result of results) {
-          if (result) {
-            weeksData[result.week] = result.data
-          }
+
+    const loadTeamData = async () => {
+      try {
+        setLoading(true)
+        setLoadingWeek(selectedWeek)
+        setWeekData(null)
+
+        // Determine if we need live data
+        const params: any = {}
+        if (selectedWeek === currentWeek) {
+          params.live = 'true'
+          params._t = Date.now()
         }
-        
+
+        // 1. Load selected team's data for selected week
+        // 2. Load all teams' data for selected week (for comparison/leaderboard)
+        const weekRes = await axios.get(`${apiBase}/week/${selectedWeek}`, { params })
+        const weekDataForSelectedWeek: WeekData = weekRes.data
+
+        // Find selected team in the week data
+        const selectedTeamData = weekDataForSelectedWeek.teams.find(t => t.name === selectedTeam)
+        if (!selectedTeamData) {
+          console.error(`Team ${selectedTeam} not found in week ${selectedWeek}`)
+          setLoading(false)
+          setLoadingWeek(null)
+          return
+        }
+
+        // Store week data (contains all teams for comparison)
         setAllWeeksData(prev => ({
           ...prev,
-          ...weeksData
+          [selectedWeek]: weekDataForSelectedWeek
         }))
+        setWeekData(weekDataForSelectedWeek)
+
+        // 3. Load selected team's historical data (all weeks)
+        const historicalPromises = weeks
+          .filter(week => week !== selectedWeek) // Don't reload current week
+          .map(async (week) => {
+            try {
+              const res = await axios.get(`${apiBase}/week/${week}`)
+              return { week, data: res.data }
+            } catch (err) {
+              console.error(`Error loading historical week ${week}:`, err)
+              return null
+            }
+          })
+
+        const historicalResults = await Promise.all(historicalPromises)
+        const historicalData: Record<number, WeekData> = {}
+
+        for (const result of historicalResults) {
+          if (result) {
+            historicalData[result.week] = result.data
+          }
+        }
+
+        // Merge historical data
+        setAllWeeksData(prev => ({
+          ...prev,
+          ...historicalData
+        }))
+
+        setLoading(false)
+        setLoadingWeek(null)
+      } catch (err) {
+        console.error(`Error loading data for team ${selectedTeam}, week ${selectedWeek}:`, err)
+        setLoading(false)
+        setLoadingWeek(null)
       }
-      loadOtherWeeks()
     }
-  }, [weeks, selectedWeek, apiBase])
-  
+
+    loadTeamData()
+  }, [selectedTeam, selectedWeek, apiBase, currentWeek, weeks])
+
   // Refresh current week data
   const refreshCurrentWeek = async () => {
-    if (currentWeek) {
+    if (currentWeek && selectedWeek === currentWeek && selectedTeam) {
       try {
         setLoading(true)
         setLoadingWeek(currentWeek)
-        setWeekData(null) // Clear data to show loading state
+        setWeekData(null)
         const res = await axios.get(`${apiBase}/week/${currentWeek}`, {
           params: { live: 'true', _t: Date.now() }
         })
@@ -174,9 +187,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
           ...prev,
           [currentWeek]: res.data
         }))
-        if (selectedWeek === currentWeek) {
-          setWeekData(res.data)
-        }
+        setWeekData(res.data)
         setLoading(false)
         setLoadingWeek(null)
       } catch (err) {
@@ -187,35 +198,21 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
     }
   }
 
-  // Update selected team when week data changes
-  useEffect(() => {
-    if (weekData && weekData.teams && weekData.teams.length > 0) {
-      // If current selected team is not in this week's teams, select first team
-      const teamExists = weekData.teams.some(t => t.name === selectedTeam)
-      if (!teamExists) {
-        setSelectedTeam(weekData.teams[0].name)
-      }
-    }
-  }, [weekData, selectedTeam])
-
-  // Calculate minutes vs each opponent
+  // Calculate minutes vs each opponent from historical data
   useEffect(() => {
     if (selectedTeam && Object.keys(allWeeksData).length > 0) {
       const minutesMap: Record<string, { minutes: number; vsAvg: number; week: number }> = {}
       
-      // Look through all weeks to find when this team played each opponent
       for (const [weekNum, weekData] of Object.entries(allWeeksData)) {
         const team = weekData.teams.find(t => t.name === selectedTeam)
         if (team && team.opponent_name) {
           const opponent = team.opponent_name
           if (!minutesMap[opponent] || parseInt(weekNum) > minutesMap[opponent].week) {
-            // Use the most recent week if team played opponent multiple times
-            // Calculate vs that week's average - use the week's own average, not a different week
             const weekAvg = weekData.league_avg_minutes || 0
             const teamMinutes = team.minutes_played || 0
             minutesMap[opponent] = {
               minutes: teamMinutes,
-              vsAvg: teamMinutes - weekAvg,  // Compare against the same week's average
+              vsAvg: teamMinutes - weekAvg,
               week: parseInt(weekNum)
             }
           }
@@ -228,7 +225,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
   // Update graph data when team or weeks change
   useEffect(() => {
-    if (selectedTeam && weeks.length > 0) {
+    if (selectedTeam && weeks.length > 0 && Object.keys(allWeeksData).length > 0) {
       const data = weeks.map(week => {
         const weekData = allWeeksData[week]
         if (!weekData) return { week, teamsBeaten: 0 }
@@ -236,7 +233,6 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
         const team = weekData.teams.find(t => t.name === selectedTeam)
         if (!team) return { week, teamsBeaten: 0 }
         
-        // Calculate teams beaten (5-4-0 or better)
         let teamsBeaten = 0
         for (const [opponent, details] of Object.entries(team.matchup_details)) {
           if (details.won >= 5) {
@@ -327,8 +323,6 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const bestCategory = findBestCategory(selectedTeamData)
   const leaderboard = generateLeaderboard()
 
-  const teams = weekData?.teams || []
-
   return (
     <div className="space-y-6">
       {/* Week and Team Selectors */}
@@ -349,29 +343,20 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
           <div className="bg-gray-800 p-4 rounded-lg">
             <label className="block mb-2 font-semibold">Select Team:</label>
-            {loading && !weekData ? (
-              <div className="w-full bg-gray-700 text-gray-400 px-4 py-2 rounded text-center">
-                Loading teams...
-              </div>
-            ) : (
-              <select
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full bg-gray-700 text-white px-4 py-2 rounded"
-                disabled={!weekData || !teams || teams.length === 0}
-              >
-                {teams && teams.length > 0 ? (
-                  teams.map(team => (
-                    <option key={team.team_id} value={team.name}>{team.name}</option>
-                  ))
-                ) : (
-                  <option value="">No teams available</option>
-                )}
-              </select>
-            )}
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+              className="w-full bg-gray-700 text-white px-4 py-2 rounded"
+              disabled={!teamNames || teamNames.length === 0}
+            >
+              <option value="">-- Select a team --</option>
+              {teamNames.map(team => (
+                <option key={team.team_id} value={team.name}>{team.name}</option>
+              ))}
+            </select>
           </div>
         </div>
-        {selectedWeek === currentWeek && (
+        {selectedWeek === currentWeek && selectedTeam && (
           <button
             onClick={refreshCurrentWeek}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
@@ -382,202 +367,208 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
         )}
       </div>
 
-      {/* Bar Graph */}
-      {!loadingWeek && graphData.length > 0 && (
-        <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-          <h2 className="text-lg md:text-xl font-bold mb-4">📊 Teams Beaten Over Time - {selectedTeam}</h2>
-          <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
-            <BarChart data={graphData} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis 
-                dataKey="week" 
-                stroke="#9CA3AF"
-                tickFormatter={(value) => `W${value}`}
-              />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
-                labelStyle={{ color: '#F3F4F6' }}
-                formatter={(value: any) => [`Teams Beaten: ${value}`, '']}
-                labelFormatter={(label: any) => `Week ${label}`}
-              />
-              <Legend />
-              <Bar dataKey="teamsBeaten" fill="#3B82F6" name="Teams Beaten">
-                {graphData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.week === selectedWeek ? '#10B981' : '#3B82F6'} 
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="text-sm text-gray-400 mt-2">Click on a bar to view that week's details</p>
+      {/* Show blank state if no team selected */}
+      {!selectedTeam && (
+        <div className="bg-gray-800 p-12 rounded-lg text-center">
+          <p className="text-gray-400 text-lg">Please select a team to view data</p>
         </div>
       )}
 
       {/* Loading State */}
-      {loadingWeek && loadingWeek === selectedWeek && !weekData && (
+      {loading && selectedTeam && (
         <div className="bg-gray-800 p-8 md:p-12 rounded-lg flex flex-col items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-          <p className="text-lg md:text-xl font-semibold text-gray-300">Loading Week {selectedWeek} data...</p>
+          <p className="text-lg md:text-xl font-semibold text-gray-300">Loading data for {selectedTeam}...</p>
           <p className="text-sm text-gray-400 mt-2">Please wait while we fetch the latest information</p>
         </div>
       )}
 
-      {/* Weekly Leaderboard */}
-      {!loadingWeek && leaderboard.length > 0 && (
-        <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-          <h2 className="text-lg md:text-xl font-bold mb-4">🏆 Week {selectedWeek} Leaderboard</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm md:text-base">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">Minutes</th>
-                  <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week {selectedWeek} League Avg Minutes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((entry, index) => {
-                  const teamData = weekData?.teams.find(t => t.name === entry.team_name)
-                  const minutes = teamData?.minutes_played || 0
-                  const vsAvg = teamData && weekData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
-                  return (
-                    <tr 
-                      key={entry.team_name} 
-                      className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
-                      onClick={() => setSelectedTeam(entry.team_name)}
-                    >
-                      <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
-                      <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
-                        {entry.team_name}
-                      </td>
-                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
-                      <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
-                      <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                        {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 p-3 bg-gray-700 rounded-lg">
-            <p className="text-xs md:text-sm text-gray-300">
-              <span className="font-semibold">Week {selectedWeek} League Average:</span> {weekData?.league_avg_minutes.toFixed(1)} minutes
-            </p>
-          </div>
-          <p className="text-xs md:text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
-        </div>
-      )}
-
-      {/* Selected Team Performance */}
-      {selectedTeamData && (
-        <div className="space-y-6">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 md:p-6 rounded-lg">
-              <h3 className="text-xs md:text-sm font-semibold text-blue-200 mb-2">Teams Beaten</h3>
-              <p className="text-3xl md:text-4xl font-bold">{teamsBeaten}</p>
-              <p className="text-xs md:text-sm text-blue-200 mt-1">5-4-0 or better</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-green-600 to-green-800 p-4 md:p-6 rounded-lg">
-              <h3 className="text-xs md:text-sm font-semibold text-green-200 mb-2">Total Category Wins</h3>
-              <p className="text-3xl md:text-4xl font-bold">{selectedTeamData.total_category_wins}</p>
-              <p className="text-xs md:text-sm text-green-200 mt-1">Across all matchups</p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-4 md:p-6 rounded-lg">
-              <h3 className="text-xs md:text-sm font-semibold text-orange-200 mb-2">Minutes Played</h3>
-              <p className="text-2xl md:text-3xl font-bold">{selectedTeamData.minutes_played.toFixed(0)}</p>
-              <p className="text-xs md:text-sm text-orange-200 mt-1">
-                {selectedTeamData.minutes_vs_league_avg > 0 ? '+' : ''}
-                {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs Week {selectedWeek} Avg
-              </p>
-              {weekData && (
-                <p className="text-xs text-orange-200/80 mt-1">Week {selectedWeek} League Avg: {weekData.league_avg_minutes.toFixed(1)} min</p>
-              )}
-            </div>
-            
-            {bestCategory && (
-              <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg">
-                <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">⭐ Best Category</h3>
-                <p className="text-xl md:text-2xl font-bold">{bestCategory.category}</p>
-                {selectedTeamData.category_totals && selectedTeamData.category_totals[bestCategory.category] !== undefined && (
-                  <p className="text-lg md:text-xl font-bold mt-1">
-                    {bestCategory.category === 'FG%' || bestCategory.category === 'FT%' 
-                      ? `${(selectedTeamData.category_totals[bestCategory.category] * 100).toFixed(1)}%`
-                      : selectedTeamData.category_totals[bestCategory.category].toFixed(1)}
-                  </p>
-                )}
-                <p className="text-xs md:text-sm text-purple-200 mt-1">{bestCategory.wins} wins</p>
-              </div>
-            )}
-          </div>
-
-          {/* Opponent Matchup */}
-          {selectedTeamData.opponent_name && (
+      {/* Content - only show if team selected and data loaded */}
+      {selectedTeam && !loading && weekData && selectedTeamData && (
+        <>
+          {/* Bar Graph */}
+          {graphData.length > 0 && (
             <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-              <h3 className="text-lg md:text-xl font-bold mb-4">⚔️ vs {selectedTeamData.opponent_name}</h3>
-              {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
-                <div className="grid grid-cols-3 gap-2 md:gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-green-400">
-                      {selectedTeamData.matchup_details[selectedTeamData.opponent_name].won}
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400">✅ Categories Won</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-red-400">
-                      {selectedTeamData.matchup_details[selectedTeamData.opponent_name].lost}
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400">❌ Categories Lost</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-gray-400">
-                      {selectedTeamData.matchup_details[selectedTeamData.opponent_name].tied}
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400">🤝 Tied</p>
-                  </div>
-                </div>
-              )}
+              <h2 className="text-lg md:text-xl font-bold mb-4">📊 Teams Beaten Over Time - {selectedTeam}</h2>
+              <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
+                <BarChart data={graphData} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="week" 
+                    stroke="#9CA3AF"
+                    tickFormatter={(value) => `W${value}`}
+                  />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    labelStyle={{ color: '#F3F4F6' }}
+                    formatter={(value: any) => [`Teams Beaten: ${value}`, '']}
+                    labelFormatter={(label: any) => `Week ${label}`}
+                  />
+                  <Legend />
+                  <Bar dataKey="teamsBeaten" fill="#3B82F6" name="Teams Beaten">
+                    {graphData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.week === selectedWeek ? '#10B981' : '#3B82F6'} 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="text-sm text-gray-400 mt-2">Click on a bar to view that week's details</p>
             </div>
           )}
 
-          {/* Performance vs All Teams */}
-          <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-            <h3 className="text-lg md:text-xl font-bold mb-4">📊 Performance vs All Teams</h3>
-            <div className="space-y-4">
-              {Object.entries(selectedTeamData.matchup_details).map(([opponent, details]) => {
-                // Get opponent's team data for this week to show THEIR minutes (not selected team's)
-                const opponentTeamData = weekData?.teams.find(t => t.name === opponent)
-                const opponentMinutes = opponentTeamData?.minutes_played || 0
-                const weekAvg = weekData?.league_avg_minutes || 0
-                const opponentVsAvg = opponentMinutes - weekAvg
-                
-                return (
-                  <div key={opponent} className="border border-gray-700 rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
-                      <h4 className="font-semibold text-sm md:text-base">{opponent}</h4>
-                      <span className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm ${
-                        details.won >= 5 
-                          ? 'bg-green-600 text-white' 
-                          : details.won > details.lost 
-                          ? 'bg-yellow-600 text-white' 
-                          : 'bg-red-600 text-white'
-                      }`}>
-                        {details.won}-{details.lost}-{details.tied}
-                      </span>
-                    </div>
-                    
-                    {/* Show opponent's minutes for this week */}
-                    {selectedWeek && weekData && opponentTeamData && (() => {
+          {/* Weekly Leaderboard */}
+          {leaderboard.length > 0 && (
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+              <h2 className="text-lg md:text-xl font-bold mb-4">🏆 Week {selectedWeek} Leaderboard</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm md:text-base">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">Minutes</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week {selectedWeek} League Avg Minutes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((entry, index) => {
+                      const teamData = weekData?.teams.find(t => t.name === entry.team_name)
+                      const minutes = teamData?.minutes_played || 0
+                      const vsAvg = teamData && weekData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
                       return (
+                        <tr 
+                          key={entry.team_name} 
+                          className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
+                          onClick={() => setSelectedTeam(entry.team_name)}
+                        >
+                          <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
+                          <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
+                            {entry.team_name}
+                          </td>
+                          <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
+                          <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
+                          <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                            {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 p-3 bg-gray-700 rounded-lg">
+                <p className="text-xs md:text-sm text-gray-300">
+                  <span className="font-semibold">Week {selectedWeek} League Average:</span> {weekData?.league_avg_minutes.toFixed(1)} minutes
+                </p>
+              </div>
+              <p className="text-xs md:text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
+            </div>
+          )}
+
+          {/* Selected Team Performance */}
+          <div className="space-y-6">
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-xs md:text-sm font-semibold text-blue-200 mb-2">Teams Beaten</h3>
+                <p className="text-3xl md:text-4xl font-bold">{teamsBeaten}</p>
+                <p className="text-xs md:text-sm text-blue-200 mt-1">5-4-0 or better</p>
+              </div>
+              
+              <div className="bg-gradient-to-br from-green-600 to-green-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-xs md:text-sm font-semibold text-green-200 mb-2">Total Category Wins</h3>
+                <p className="text-3xl md:text-4xl font-bold">{selectedTeamData.total_category_wins}</p>
+                <p className="text-xs md:text-sm text-green-200 mt-1">Across all matchups</p>
+              </div>
+              
+              <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-xs md:text-sm font-semibold text-orange-200 mb-2">Minutes Played</h3>
+                <p className="text-2xl md:text-3xl font-bold">{selectedTeamData.minutes_played.toFixed(0)}</p>
+                <p className="text-xs md:text-sm text-orange-200 mt-1">
+                  {selectedTeamData.minutes_vs_league_avg > 0 ? '+' : ''}
+                  {selectedTeamData.minutes_vs_league_avg.toFixed(1)} vs Week {selectedWeek} Avg
+                </p>
+                {weekData && (
+                  <p className="text-xs text-orange-200/80 mt-1">Week {selectedWeek} League Avg: {weekData.league_avg_minutes.toFixed(1)} min</p>
+                )}
+              </div>
+              
+              {bestCategory && (
+                <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-4 md:p-6 rounded-lg">
+                  <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">⭐ Best Category</h3>
+                  <p className="text-xl md:text-2xl font-bold">{bestCategory.category}</p>
+                  {selectedTeamData.category_totals && selectedTeamData.category_totals[bestCategory.category] !== undefined && (
+                    <p className="text-lg md:text-xl font-bold mt-1">
+                      {bestCategory.category === 'FG%' || bestCategory.category === 'FT%' 
+                        ? `${(selectedTeamData.category_totals[bestCategory.category] * 100).toFixed(1)}%`
+                        : selectedTeamData.category_totals[bestCategory.category].toFixed(1)}
+                    </p>
+                  )}
+                  <p className="text-xs md:text-sm text-purple-200 mt-1">{bestCategory.wins} wins</p>
+                </div>
+              )}
+            </div>
+
+            {/* Opponent Matchup */}
+            {selectedTeamData.opponent_name && (
+              <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-lg md:text-xl font-bold mb-4">⚔️ vs {selectedTeamData.opponent_name}</h3>
+                {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
+                  <div className="grid grid-cols-3 gap-2 md:gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl md:text-3xl font-bold text-green-400">
+                        {selectedTeamData.matchup_details[selectedTeamData.opponent_name].won}
+                      </p>
+                      <p className="text-xs md:text-sm text-gray-400">✅ Categories Won</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl md:text-3xl font-bold text-red-400">
+                        {selectedTeamData.matchup_details[selectedTeamData.opponent_name].lost}
+                      </p>
+                      <p className="text-xs md:text-sm text-gray-400">❌ Categories Lost</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl md:text-3xl font-bold text-gray-400">
+                        {selectedTeamData.matchup_details[selectedTeamData.opponent_name].tied}
+                      </p>
+                      <p className="text-xs md:text-sm text-gray-400">🤝 Tied</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Performance vs All Teams */}
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+              <h3 className="text-lg md:text-xl font-bold mb-4">📊 Performance vs All Teams</h3>
+              <div className="space-y-4">
+                {Object.entries(selectedTeamData.matchup_details).map(([opponent, details]) => {
+                  const opponentTeamData = weekData?.teams.find(t => t.name === opponent)
+                  const opponentMinutes = opponentTeamData?.minutes_played || 0
+                  const weekAvg = weekData?.league_avg_minutes || 0
+                  const opponentVsAvg = opponentMinutes - weekAvg
+                  
+                  return (
+                    <div key={opponent} className="border border-gray-700 rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                        <h4 className="font-semibold text-sm md:text-base">{opponent}</h4>
+                        <span className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm ${
+                          details.won >= 5 
+                            ? 'bg-green-600 text-white' 
+                            : details.won > details.lost 
+                            ? 'bg-yellow-600 text-white' 
+                            : 'bg-red-600 text-white'
+                        }`}>
+                          {details.won}-{details.lost}-{details.tied}
+                        </span>
+                      </div>
+                      
+                      {selectedWeek && weekData && opponentTeamData && (
                         <div className="bg-gradient-to-br from-orange-600 to-orange-800 p-2 md:p-3 rounded-lg mb-2">
                           <h5 className="text-xs font-semibold text-orange-200 mb-1">⏱️ {opponent}'s Minutes Played</h5>
                           <p className="text-xl md:text-2xl font-bold">{opponentMinutes.toFixed(0)}</p>
@@ -585,63 +576,63 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                             {opponentVsAvg > 0 ? '+' : ''}{opponentVsAvg.toFixed(1)} vs Week {selectedWeek} League Avg Minutes
                           </p>
                         </div>
-                      )
-                    })()}
-                    
-                    {details.won_cats.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs md:text-sm text-gray-400 mb-1">✅ Categories Won:</p>
-                        <div className="flex flex-wrap gap-1 md:gap-2">
-                          {details.won_cats.map(cat => {
-                            const selectedValue = selectedTeamData.category_totals?.[cat]
-                            const opponentValue = opponentTeamData?.category_totals?.[cat]
-                            return (
-                              <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm" title={
-                                selectedValue !== undefined && opponentValue !== undefined
-                                  ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
-                                  : cat
-                              }>
-                                {cat} {selectedValue !== undefined && opponentValue !== undefined && (
-                                  <span className="text-green-200">
-                                    ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
-                                  </span>
-                                )}
-                              </span>
-                            )
-                          })}
+                      )}
+                      
+                      {details.won_cats.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs md:text-sm text-gray-400 mb-1">✅ Categories Won:</p>
+                          <div className="flex flex-wrap gap-1 md:gap-2">
+                            {details.won_cats.map(cat => {
+                              const selectedValue = selectedTeamData.category_totals?.[cat]
+                              const opponentValue = opponentTeamData?.category_totals?.[cat]
+                              return (
+                                <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-700 rounded text-xs md:text-sm" title={
+                                  selectedValue !== undefined && opponentValue !== undefined
+                                    ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
+                                    : cat
+                                }>
+                                  {cat} {selectedValue !== undefined && opponentValue !== undefined && (
+                                    <span className="text-green-200">
+                                      ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
+                                    </span>
+                                  )}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {details.lost_cats.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs md:text-sm text-gray-400 mb-1">❌ Categories Lost:</p>
-                        <div className="flex flex-wrap gap-1 md:gap-2">
-                          {details.lost_cats.map(cat => {
-                            const selectedValue = selectedTeamData.category_totals?.[cat]
-                            const opponentValue = opponentTeamData?.category_totals?.[cat]
-                            return (
-                              <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm" title={
-                                selectedValue !== undefined && opponentValue !== undefined
-                                  ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
-                                  : cat
-                              }>
-                                {cat} {selectedValue !== undefined && opponentValue !== undefined && (
-                                  <span className="text-red-200">
-                                    ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
-                                  </span>
-                                )}
-                              </span>
-                            )
-                          })}
+                      )}
+                      {details.lost_cats.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs md:text-sm text-gray-400 mb-1">❌ Categories Lost:</p>
+                          <div className="flex flex-wrap gap-1 md:gap-2">
+                            {details.lost_cats.map(cat => {
+                              const selectedValue = selectedTeamData.category_totals?.[cat]
+                              const opponentValue = opponentTeamData?.category_totals?.[cat]
+                              return (
+                                <span key={cat} className="px-1.5 md:px-2 py-0.5 md:py-1 bg-red-700 rounded text-xs md:text-sm" title={
+                                  selectedValue !== undefined && opponentValue !== undefined
+                                    ? `${selectedTeam}: ${cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) + '%' : selectedValue.toFixed(1)} vs ${opponent}: ${cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) + '%' : opponentValue.toFixed(1)}`
+                                    : cat
+                                }>
+                                  {cat} {selectedValue !== undefined && opponentValue !== undefined && (
+                                    <span className="text-red-200">
+                                      ({cat === 'FG%' || cat === 'FT%' ? (selectedValue * 100).toFixed(1) : selectedValue.toFixed(1)} vs {cat === 'FG%' || cat === 'FT%' ? (opponentValue * 100).toFixed(1) : opponentValue.toFixed(1)})
+                                    </span>
+                                  )}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
