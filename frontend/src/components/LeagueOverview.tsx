@@ -94,10 +94,6 @@ interface CurrentWeekTeam {
   beaten_teams: string[]
   category_totals: Record<string, number>
   logo_url?: string
-  avg_minutes_per_player?: number
-  league_avg_minutes_per_player?: number
-  avg_games_per_player?: number
-  league_avg_games_per_player?: number
 }
 
 interface CurrentWeekData {
@@ -226,10 +222,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     opponents_beaten: string[]
     best_category: string
     logo_url?: string
-    avg_minutes_per_player?: number
-    league_avg_minutes_per_player?: number
-    avg_games_per_player?: number
-    league_avg_games_per_player?: number
   }> = []
 
   if (currentWeekData && currentWeekData.teams) {
@@ -290,11 +282,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         team: team.name,
         opponents_beaten: opponentsBeaten,
         best_category: bestCategory || 'N/A',
-        logo_url: team.logo_url,
-        avg_minutes_per_player: team.avg_minutes_per_player,
-        league_avg_minutes_per_player: team.league_avg_minutes_per_player,
-        avg_games_per_player: team.avg_games_per_player,
-        league_avg_games_per_player: team.league_avg_games_per_player
+        logo_url: team.logo_url
       })
     })
   }
@@ -342,8 +330,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Opponents Beaten</th>
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Best Category</th>
-                <th className="px-2 md:px-4 py-2 md:py-3 text-left">Avg Mins/Player</th>
-                <th className="px-2 md:px-4 py-2 md:py-3 text-left">Avg Games/Player</th>
               </tr>
             </thead>
             <tbody>
@@ -404,34 +390,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                     <span className="px-2 py-1 bg-blue-700 text-blue-200 rounded text-xs md:text-sm font-semibold">
                       {categoryEmojis[teamStat.best_category] || ''} {teamStat.best_category}
                     </span>
-                  </td>
-                  <td className="px-2 md:px-4 py-2 md:py-3">
-                    <div className="text-xs md:text-sm">
-                      <div className="font-medium text-white">
-                        {teamStat.avg_minutes_per_player !== undefined 
-                          ? `${teamStat.avg_minutes_per_player.toFixed(1)}` 
-                          : 'N/A'}
-                      </div>
-                      {teamStat.league_avg_minutes_per_player !== undefined && (
-                        <div className="text-gray-400 text-xs mt-0.5">
-                          League: {teamStat.league_avg_minutes_per_player.toFixed(1)}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-2 md:px-4 py-2 md:py-3">
-                    <div className="text-xs md:text-sm">
-                      <div className="font-medium text-white">
-                        {teamStat.avg_games_per_player !== undefined 
-                          ? `${teamStat.avg_games_per_player.toFixed(1)}` 
-                          : 'N/A'}
-                      </div>
-                      {teamStat.league_avg_games_per_player !== undefined && (
-                        <div className="text-gray-400 text-xs mt-0.5">
-                          League: {teamStat.league_avg_games_per_player.toFixed(1)}
-                        </div>
-                      )}
-                    </div>
                   </td>
                 </tr>
               ))}
