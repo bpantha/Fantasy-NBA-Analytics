@@ -12,9 +12,24 @@ interface WeekModalProps {
 export default function WeekModal({ week, apiBase, onClose }: WeekModalProps) {
   const [weekData, setWeekData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
 
   useEffect(() => {
-    axios.get(`${apiBase}/week/${week}`)
+    // Get current week from league summary
+    axios.get(`${apiBase}/league/summary`)
+      .then(res => {
+        setCurrentWeek(res.data.current_matchup_period)
+      })
+      .catch(err => console.error('Error loading current week:', err))
+  }, [apiBase])
+
+  useEffect(() => {
+    // Only fetch live data if this is the current week
+    const params: any = {}
+    if (currentWeek && week === currentWeek) {
+      params.live = 'true'
+    }
+    axios.get(`${apiBase}/week/${week}`, { params })
       .then(res => {
         setWeekData(res.data)
         setLoading(false)
@@ -23,7 +38,7 @@ export default function WeekModal({ week, apiBase, onClose }: WeekModalProps) {
         console.error('Error loading week data:', err)
         setLoading(false)
       })
-  }, [week, apiBase])
+  }, [week, apiBase, currentWeek])
 
   // Sort teams by total teams beaten
   const sortedTeams = weekData?.teams?.sort((a: any, b: any) => 

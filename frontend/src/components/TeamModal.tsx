@@ -14,6 +14,7 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [weekData, setWeekData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
 
   useEffect(() => {
     axios.get(`${apiBase}/weeks`)
@@ -25,12 +26,24 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
         }
       })
       .catch(err => console.error('Error loading weeks:', err))
+    
+    // Get current week from league summary
+    axios.get(`${apiBase}/league/summary`)
+      .then(res => {
+        setCurrentWeek(res.data.current_matchup_period)
+      })
+      .catch(err => console.error('Error loading current week:', err))
   }, [apiBase])
 
   useEffect(() => {
     if (selectedWeek) {
       setLoading(true)
-      axios.get(`${apiBase}/week/${selectedWeek}`)
+      // Only fetch live data if this is the current week
+      const params: any = {}
+      if (currentWeek && selectedWeek === currentWeek) {
+        params.live = 'true'
+      }
+      axios.get(`${apiBase}/week/${selectedWeek}`, { params })
         .then(res => {
           setWeekData(res.data)
           setLoading(false)
@@ -42,7 +55,7 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
     } else {
       setWeekData(null)
     }
-  }, [selectedWeek, apiBase])
+  }, [selectedWeek, apiBase, currentWeek])
 
   const teamData = weekData?.teams?.find((t: any) => t.name === teamName)
 

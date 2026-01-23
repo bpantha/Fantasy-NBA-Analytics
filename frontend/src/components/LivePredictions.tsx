@@ -42,9 +42,9 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
     try {
       setLoading(true)
       setError(null)
-      // Always fetch fresh data - add cache-busting parameter
+      // Fetch live predictions - requires live=true parameter
       const response = await axios.get(`${apiBase}/predictions`, {
-        params: { _t: Date.now() }
+        params: { live: 'true', _t: Date.now() }
       })
       setPredictions(response.data.predictions || [])
       if (response.data.predictions && response.data.predictions.length > 0) {

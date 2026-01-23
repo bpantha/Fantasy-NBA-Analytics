@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
 
@@ -47,8 +47,10 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const [weekData, setWeekData] = useState<WeekData | null>(null)
   const [allWeeksData, setAllWeeksData] = useState<Record<number, WeekData>>({})
   const [loading, setLoading] = useState(false)
+  const [loadingWeek, setLoadingWeek] = useState<number | null>(null) // Track which week is loading
   const [graphData, setGraphData] = useState<Array<{ week: number; teamsBeaten: number }>>([])
   const [opponentMinutes, setOpponentMinutes] = useState<Record<string, { minutes: number; vsAvg: number; week: number }>>({})
+  const loadedWeeksRef = useRef<Set<number>>(new Set()) // Track loaded weeks to avoid reloading
 
   // Load all available weeks
   useEffect(() => {
@@ -81,45 +83,74 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       const loadWeekData = async () => {
         try {
           setLoading(true)
-          // Always fetch fresh data for current week, use cached for historical
-          const res = await axios.get(`${apiBase}/week/${selectedWeek}`, {
-            // Add cache-busting for current week
-            params: selectedWeek === currentWeek ? { _t: Date.now() } : {}
-          })
+          setLoadingWeek(selectedWeek) // Track which week is loading
+          // Clear current week data to show loading state
+          setWeekData(null)
+          
+          // Only fetch live data when current week is selected
+          const params: any = {}
+          if (selectedWeek === currentWeek) {
+            params.live = 'true'
+            params._t = Date.now() // Cache-busting
+          }
+          const res = await axios.get(`${apiBase}/week/${selectedWeek}`, { params })
           setAllWeeksData(prev => ({
             ...prev,
             [selectedWeek]: res.data
           }))
+          loadedWeeksRef.current.add(selectedWeek) // Mark as loaded
           setWeekData(res.data)
           // Set selected team if not already set
           if (res.data.teams && res.data.teams.length > 0 && !selectedTeam) {
             setSelectedTeam(res.data.teams[0].name)
           }
           setLoading(false)
+          setLoadingWeek(null)
         } catch (err) {
           console.error(`Error loading week ${selectedWeek}:`, err)
           setLoading(false)
+          setLoadingWeek(null)
         }
       }
       loadWeekData()
     }
   }, [selectedWeek, apiBase, currentWeek])
   
-  // Load other weeks in background (non-blocking)
+  // Load other weeks in background (non-blocking) - optimized with parallel loading
   useEffect(() => {
     if (weeks.length > 0 && selectedWeek) {
       const loadOtherWeeks = async () => {
-        const weeksData: Record<number, WeekData> = {}
-        for (const week of weeks) {
-          // Skip selected week - already loaded
-          if (week === selectedWeek) continue
+        // Get weeks that haven't been loaded yet (using ref to avoid dependency issues)
+        const weeksToLoad = weeks.filter(week => 
+          week !== selectedWeek && !loadedWeeksRef.current.has(week)
+        )
+        
+        if (weeksToLoad.length === 0) return
+        
+        // Mark weeks as loading
+        weeksToLoad.forEach(week => loadedWeeksRef.current.add(week))
+        
+        // Load all weeks in parallel for faster loading
+        const weekPromises = weeksToLoad.map(async (week) => {
           try {
             const res = await axios.get(`${apiBase}/week/${week}`)
-            weeksData[week] = res.data
+            return { week, data: res.data }
           } catch (err) {
             console.error(`Error loading week ${week}:`, err)
+            loadedWeeksRef.current.delete(week) // Remove on error so it can retry
+            return null
+          }
+        })
+        
+        const results = await Promise.all(weekPromises)
+        const weeksData: Record<number, WeekData> = {}
+        
+        for (const result of results) {
+          if (result) {
+            weeksData[result.week] = result.data
           }
         }
+        
         setAllWeeksData(prev => ({
           ...prev,
           ...weeksData
@@ -133,8 +164,11 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const refreshCurrentWeek = async () => {
     if (currentWeek) {
       try {
+        setLoading(true)
+        setLoadingWeek(currentWeek)
+        setWeekData(null) // Clear data to show loading state
         const res = await axios.get(`${apiBase}/week/${currentWeek}`, {
-          params: { _t: Date.now() }
+          params: { live: 'true', _t: Date.now() }
         })
         setAllWeeksData(prev => ({
           ...prev,
@@ -143,8 +177,12 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
         if (selectedWeek === currentWeek) {
           setWeekData(res.data)
         }
+        setLoading(false)
+        setLoadingWeek(null)
       } catch (err) {
         console.error(`Error refreshing current week:`, err)
+        setLoading(false)
+        setLoadingWeek(null)
       }
     }
   }
@@ -345,7 +383,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       </div>
 
       {/* Bar Graph */}
-      {graphData.length > 0 && (
+      {!loadingWeek && graphData.length > 0 && (
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
           <h2 className="text-lg md:text-xl font-bold mb-4">📊 Teams Beaten Over Time - {selectedTeam}</h2>
           <ResponsiveContainer width="100%" height={250} className="min-h-[250px]">
@@ -378,8 +416,17 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
         </div>
       )}
 
+      {/* Loading State */}
+      {loadingWeek && loadingWeek === selectedWeek && !weekData && (
+        <div className="bg-gray-800 p-8 md:p-12 rounded-lg flex flex-col items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+          <p className="text-lg md:text-xl font-semibold text-gray-300">Loading Week {selectedWeek} data...</p>
+          <p className="text-sm text-gray-400 mt-2">Please wait while we fetch the latest information</p>
+        </div>
+      )}
+
       {/* Weekly Leaderboard */}
-      {leaderboard.length > 0 && (
+      {!loadingWeek && leaderboard.length > 0 && (
         <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
           <h2 className="text-lg md:text-xl font-bold mb-4">🏆 Week {selectedWeek} Leaderboard</h2>
           <div className="overflow-x-auto">

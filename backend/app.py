@@ -44,14 +44,15 @@ def get_league_instance():
         return League(league_id=LEAGUE_ID, year=YEAR, espn_s2=ESPN_S2, swid=ESPN_SWID, fetch_league=True)
     return None
 
-def get_current_week():
-    """Get current matchup period from live API (always fresh)"""
-    # Always get from live API to ensure we have the most current week
-    league = get_league_instance()
-    if league:
-        return league.currentMatchupPeriod
+def get_current_week(fetch_live=False):
+    """Get current matchup period - only fetches live if fetch_live=True"""
+    if fetch_live:
+        # Get from live API to ensure we have the most current week
+        league = get_league_instance()
+        if league:
+            return league.currentMatchupPeriod
     
-    # Fallback to cached data only if API unavailable
+    # Use cached data from league summary
     summary_path = DATA_DIR / 'league_summary.json'
     if summary_path.exists():
         with open(summary_path, 'r') as f:
@@ -79,11 +80,15 @@ def get_available_weeks():
 
 @app.route('/api/week/<int:week>', methods=['GET'])
 def get_week_data(week):
-    """Get analytics data for a specific week - uses live data for current week, historical for others"""
-    current_week = get_current_week()
+    """Get analytics data for a specific week - only fetches live data when live=true parameter is provided"""
+    # Check if live data is explicitly requested
+    fetch_live = request.args.get('live', 'false').lower() == 'true'
     
-    # If requesting current week, fetch live data from ESPN API
-    if week == current_week:
+    # Get current week (without fetching live unless requested)
+    current_week = get_current_week(fetch_live=fetch_live)
+    
+    # Only fetch live data if explicitly requested via parameter
+    if fetch_live and week == current_week:
         try:
             # Import here to avoid circular imports
             import importlib.util
@@ -210,12 +215,12 @@ def compare_teams(team1, team2):
 
 @app.route('/api/league/stats', methods=['GET'])
 def get_league_stats():
-    """Get aggregated league statistics across all weeks - uses live data for current week"""
+    """Get aggregated league statistics across all weeks - only uses live data if live=true parameter provided"""
     from collections import defaultdict
     
-    current_week = get_current_week()
-    
-    current_week = get_current_week()
+    # Check if live data is explicitly requested
+    fetch_live = request.args.get('live', 'false').lower() == 'true'
+    current_week = get_current_week(fetch_live=fetch_live)
     
     # Load all week data files (historical weeks)
     all_weeks_data = []
@@ -233,26 +238,29 @@ def get_league_stats():
         except:
             continue
     
-    # Fetch live data for current week
-    try:
-        # Import here to avoid circular imports
-        import importlib.util
-        export_path = Path(__file__).parent / 'export_analytics.py'
-        spec = importlib.util.spec_from_file_location("export_analytics", export_path)
-        export_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(export_module)
-        
-        league = get_league_instance()
-        if league:
-            live_current_week = export_module.export_week_analytics(league, current_week)
-            if live_current_week:
-                all_weeks_data.append(live_current_week)
-                weeks.append(current_week)
-    except Exception as e:
-        print(f"Error fetching live current week data: {e}")
-        import traceback
-        traceback.print_exc()
-        # Try to load current week from file as fallback
+    # Only fetch live data for current week if explicitly requested
+    if fetch_live:
+        try:
+            # Import here to avoid circular imports
+            import importlib.util
+            export_path = Path(__file__).parent / 'export_analytics.py'
+            spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+            export_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(export_module)
+            
+            league = get_league_instance()
+            if league:
+                live_current_week = export_module.export_week_analytics(league, current_week)
+                if live_current_week:
+                    all_weeks_data.append(live_current_week)
+                    weeks.append(current_week)
+        except Exception as e:
+            print(f"Error fetching live current week data: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # If not fetching live, or if live fetch failed, try to load current week from file
+    if current_week not in weeks:
         current_week_file = DATA_DIR / f'week{current_week}.json'
         if current_week_file.exists():
             with open(current_week_file, 'r') as f:
@@ -638,13 +646,19 @@ def get_league_stats():
 
 @app.route('/api/predictions', methods=['GET'])
 def get_predictions():
-    """Get live matchup predictions for current week"""
+    """Get live matchup predictions for current week - only fetches live data when live=true parameter is provided"""
+    # Check if live data is explicitly requested
+    fetch_live = request.args.get('live', 'false').lower() == 'true'
+    
+    if not fetch_live:
+        return jsonify({'error': 'Live predictions require live=true parameter'}), 400
+    
     try:
         league = get_league_instance()
         if not league:
             return jsonify({'error': 'League API unavailable'}), 503
         
-        current_week = get_current_week()
+        current_week = get_current_week(fetch_live=True)
         
         # For current week, ensure we get the absolute latest data (same logic as export_week_analytics)
         # Refresh league to get latest scoring period
