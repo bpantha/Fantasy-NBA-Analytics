@@ -168,7 +168,9 @@ def _player_season_avg(stat_block):
     return {k: (total.get(k) or 0) / gp for k in keys}
 
 def _aggregate_roster_totals(players_with_avgs):
-    """Sum each player's season average. Counting: PTS, REB, AST, STL, BLK, 3PM, TO. FG% = sum(avg FGM)/sum(avg FGA), FT% = sum(avg FTM)/sum(avg FTA)."""
+    """Sum each player's season average. Counting: PTS, REB, AST, STL, BLK, 3PM, TO.
+    FG% = FGM / FGA (field goals made / attempted). FT% = FTM / FTA (free throws made / attempted).
+    We sum each player's FGM,FGA,FTM,FTA then: FG% = sum(FGM)/sum(FGA), FT% = sum(FTM)/sum(FTA)."""
     totals = {c: 0.0 for c in STANDARD_CATS}
     fgm = fga = ftm = fta = 0.0
     for a in players_with_avgs:
@@ -178,8 +180,9 @@ def _aggregate_roster_totals(players_with_avgs):
         fga += a.get('FGA', 0) or 0
         ftm += a.get('FTM', 0) or 0
         fta += a.get('FTA', 0) or 0
-    totals['FG%'] = (fgm / fga) if fga and fga > 0 else 0.0
-    totals['FT%'] = (ftm / fta) if fta and fta > 0 else 0.0
+    # FG% = field goals made / field goals attempted; FT% = free throws made / free throws attempted
+    totals['FG%'] = (fgm / fga) if (fga and fga > 0) else 0.0
+    totals['FT%'] = (ftm / fta) if (fta and fta > 0) else 0.0
     return totals
 
 @app.route('/api/league/roster-totals', methods=['GET'])
