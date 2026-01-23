@@ -34,10 +34,11 @@ interface WeekData {
   teams: Team[]
 }
 
-interface LeaderboardEntry {
-  team_name: string
-  total_wins: number
-  teams_beaten: string[]
+interface RosterTotalsTeam {
+  name: string
+  team_id: number
+  logo_url?: string | null
+  roster_totals: Record<string, number>
 }
 
 interface TeamName {
@@ -57,6 +58,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const [graphData, setGraphData] = useState<Array<{ week: number; teamsBeaten: number }>>([])
   const [opponentMinutes, setOpponentMinutes] = useState<Record<string, { minutes: number; vsAvg: number; week: number }>>({})
   const [currentWeek, setCurrentWeek] = useState<number | null>(null)
+  const [rosterTotals, setRosterTotals] = useState<{ teams: RosterTotalsTeam[]; season?: number } | null>(null)
+  const [compareTeam, setCompareTeam] = useState<string>('')
+  const [loadingRosterTotals, setLoadingRosterTotals] = useState(false)
 
   // Load weeks list and set default to latest (no data fetch)
   useEffect(() => {
@@ -87,6 +91,25 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       })
       .catch(err => console.error('Error loading league summary:', err))
   }, [apiBase])
+
+  // Fetch roster totals when a team is selected (used for Team Roster Totals and compare)
+  useEffect(() => {
+    if (!selectedTeam) {
+      setRosterTotals(null)
+      return
+    }
+    setLoadingRosterTotals(true)
+    axios.get(`${apiBase}/league/roster-totals`)
+      .then(res => {
+        setRosterTotals(res.data)
+        setLoadingRosterTotals(false)
+      })
+      .catch(err => {
+        console.error('Error loading roster totals:', err)
+        setRosterTotals(null)
+        setLoadingRosterTotals(false)
+      })
+  }, [selectedTeam, apiBase])
 
   // Load data when team is selected
   useEffect(() => {
@@ -290,38 +313,14 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
     return bestCategory ? { category: bestCategory, wins: maxWins } : null
   }
 
-  // Generate weekly leaderboard
-  const generateLeaderboard = (): LeaderboardEntry[] => {
-    if (!weekData) return []
-    
-    const leaderboard: Record<string, { wins: number; teams: string[] }> = {}
-    
-    for (const team of weekData.teams) {
-      let wins = 0
-      const beaten: string[] = []
-      
-      for (const [opponent, details] of Object.entries(team.matchup_details)) {
-        if (details.won >= 5) {
-          wins++
-          beaten.push(opponent)
-        }
-      }
-      
-      leaderboard[team.name] = { wins, teams: beaten }
-    }
-    
-    return Object.entries(leaderboard)
-      .map(([team_name, data]) => ({
-        team_name,
-        total_wins: data.wins,
-        teams_beaten: data.teams
-      }))
-      .sort((a, b) => b.total_wins - a.total_wins)
-  }
-
   const teamsBeaten = calculateTeamsBeaten(selectedTeamData)
   const bestCategory = findBestCategory(selectedTeamData)
-  const leaderboard = generateLeaderboard()
+
+  const categories = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+  const selectedRoster = rosterTotals?.teams?.find(t => t.name === selectedTeam)
+  const compareRoster = compareTeam ? rosterTotals?.teams?.find(t => t.name === compareTeam) : null
+  const isBetter = (cat: string, a: number, b: number) =>
+    cat === 'TO' ? (a < b) : (a > b)
 
   return (
     <div className="space-y-6">
@@ -420,55 +419,95 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             </div>
           )}
 
-          {/* Weekly Leaderboard */}
-          {leaderboard.length > 0 && (
-            <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
-              <h2 className="text-lg md:text-xl font-bold mb-4">🏆 Week {selectedWeek} Leaderboard</h2>
+          {/* Team Roster Category Totals + Compare */}
+          <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <h2 className="text-lg md:text-xl font-bold">
+                📊 Team Roster Category Totals — {selectedTeam}
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-400 whitespace-nowrap">Compare with:</label>
+                <select
+                  value={compareTeam}
+                  onChange={(e) => setCompareTeam(e.target.value)}
+                  className="bg-gray-700 text-white px-3 py-2 rounded text-sm min-w-[160px]"
+                >
+                  <option value="">— None —</option>
+                  {rosterTotals?.teams
+                    ?.filter(t => t.name !== selectedTeam)
+                    .map(t => (
+                      <option key={t.team_id} value={t.name}>{t.name}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs md:text-sm text-gray-400 mb-4">
+              Season totals across all players on each team’s roster. Compare highlights green when you’re better, red when worse (for TO, lower is better).
+            </p>
+            {loadingRosterTotals && (
+              <div className="flex items-center gap-2 text-gray-400 py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-500 border-t-transparent" />
+                Loading roster totals…
+              </div>
+            )}
+            {!loadingRosterTotals && selectedRoster && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm md:text-base">
                   <thead className="bg-gray-700">
                     <tr>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-left">Rank</th>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total Wins</th>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">Minutes</th>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">vs Week {selectedWeek} League Avg Minutes</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-left">Category</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-right">{selectedTeam}</th>
+                      {compareTeam && compareRoster && (
+                        <>
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-right">{compareTeam}</th>
+                          <th className="px-2 md:px-4 py-2 md:py-3 text-center">vs</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboard.map((entry, index) => {
-                      const teamData = weekData?.teams.find(t => t.name === entry.team_name)
-                      const minutes = teamData?.minutes_played || 0
-                      const vsAvg = teamData && weekData ? (teamData.minutes_played - weekData.league_avg_minutes) : 0
+                    {categories.map(cat => {
+                      const my = selectedRoster?.roster_totals?.[cat] ?? 0
+                      const other = compareRoster?.roster_totals?.[cat] ?? 0
+                      const showPct = cat === 'FG%' || cat === 'FT%'
+                      const fmt = (v: number) => showPct ? `${(v * 100).toFixed(1)}%` : (typeof v === 'number' ? v.toFixed(1) : String(v))
+                      const better = compareRoster ? isBetter(cat, my, other) : null
                       return (
-                        <tr 
-                          key={entry.team_name} 
-                          className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
-                          onClick={() => setSelectedTeam(entry.team_name)}
-                        >
-                          <td className="px-2 md:px-4 py-2 md:py-3">{index + 1}</td>
-                          <td className="px-2 md:px-4 py-2 md:py-3 font-medium text-blue-400 hover:text-blue-300">
-                            {entry.team_name}
+                        <tr key={cat} className="border-t border-gray-700">
+                          <td className="px-2 md:px-4 py-2 md:py-3 font-medium">{cat}</td>
+                          <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${compareRoster && better === true ? 'text-green-400' : compareRoster && better === false ? 'text-red-400' : ''}`}>
+                            {fmt(my)}
                           </td>
-                          <td className="px-2 md:px-4 py-2 md:py-3 text-right">{entry.total_wins}</td>
-                          <td className="px-2 md:px-4 py-2 md:py-3 text-right">{minutes.toFixed(0)}</td>
-                          <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${vsAvg > 0 ? 'text-green-400' : vsAvg < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                            {vsAvg > 0 ? '+' : ''}{vsAvg.toFixed(1)}
-                          </td>
+                          {compareTeam && compareRoster && (
+                            <>
+                              <td className={`px-2 md:px-4 py-2 md:py-3 text-right ${better === false ? 'text-green-400' : better === true ? 'text-red-400' : ''}`}>
+                                {fmt(other)}
+                              </td>
+                              <td className="px-2 md:px-4 py-2 md:py-3 text-center">
+                                {better === true ? (
+                                  <span className="text-green-400" title="You’re better">✓</span>
+                                ) : better === false ? (
+                                  <span className="text-red-400" title="They’re better">✗</span>
+                                ) : (
+                                  <span className="text-gray-500">—</span>
+                                )}
+                              </td>
+                            </>
+                          )}
                         </tr>
                       )
                     })}
                   </tbody>
                 </table>
               </div>
-              <div className="mt-3 p-3 bg-gray-700 rounded-lg">
-                <p className="text-xs md:text-sm text-gray-300">
-                  <span className="font-semibold">Week {selectedWeek} League Average:</span> {weekData?.league_avg_minutes.toFixed(1)} minutes
-                </p>
-              </div>
-              <p className="text-xs md:text-sm text-gray-400 mt-2">Click on a team name to view their details</p>
-            </div>
-          )}
+            )}
+            {!loadingRosterTotals && !selectedRoster && rosterTotals && (
+              <p className="text-gray-400">Roster totals not found for this team.</p>
+            )}
+            {!loadingRosterTotals && selectedTeam && !rosterTotals && (
+              <p className="text-amber-400">Roster totals unavailable. The league API may be required.</p>
+            )}
+          </div>
 
           {/* Selected Team Performance */}
           <div className="space-y-6">

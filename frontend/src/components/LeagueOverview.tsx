@@ -93,6 +93,8 @@ interface CurrentWeekTeam {
   }>
   beaten_teams: string[]
   category_totals: Record<string, number>
+  minutes_played?: number
+  games_played?: number
   logo_url?: string
 }
 
@@ -221,6 +223,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     team: string
     opponents_beaten: string[]
     best_category: string
+    minutes_played: number
+    games_played: number
     logo_url?: string
   }> = []
 
@@ -282,6 +286,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         team: team.name,
         opponents_beaten: opponentsBeaten,
         best_category: bestCategory || 'N/A',
+        minutes_played: team.minutes_played ?? 0,
+        games_played: team.games_played ?? 0,
         logo_url: team.logo_url
       })
     })
@@ -329,6 +335,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               <tr>
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Opponents Beaten</th>
+                <th className="px-2 md:px-4 py-2 md:py-3 text-right">Mins</th>
+                <th className="px-2 md:px-4 py-2 md:py-3 text-right">GP</th>
                 <th className="px-2 md:px-4 py-2 md:py-3 text-left">Best Category</th>
               </tr>
             </thead>
@@ -386,6 +394,12 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
                       <span className="text-gray-500 text-xs md:text-sm">None</span>
                     )}
                   </td>
+                  <td className="px-2 md:px-4 py-2 md:py-3 text-right">
+                    {teamStat.minutes_played.toFixed(0)}
+                  </td>
+                  <td className="px-2 md:px-4 py-2 md:py-3 text-right">
+                    {teamStat.games_played.toFixed(0)}
+                  </td>
                   <td className="px-2 md:px-4 py-2 md:py-3">
                     <span className="px-2 py-1 bg-blue-700 text-blue-200 rounded text-xs md:text-sm font-semibold">
                       {categoryEmojis[teamStat.best_category] || ''} {teamStat.best_category}
@@ -396,7 +410,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             </tbody>
           </table>
         </div>
-        <p className="text-xs md:text-sm text-gray-400 mt-3">👆 Click on a team name to view details</p>
+        <p className="text-xs md:text-sm text-gray-400 mt-3">
+          👆 Click on a team name to view details. Mins and GP: healthy/DTD players who played; current week is Mon–Sun only.
+        </p>
       </section>
 
       {/* Rest of content - only show after current week data is loaded */}

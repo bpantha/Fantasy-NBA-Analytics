@@ -151,6 +151,88 @@ def get_league_summary():
         data = json.load(f)
     return jsonify(data)
 
+STANDARD_CATS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+
+def _aggregate_roster_totals(players_with_totals):
+    """Sum counting stats; compute FG% and FT% from FGM/FGA, FTM/FTA."""
+    totals = {c: 0.0 for c in STANDARD_CATS}
+    fgm = fga = ftm = fta = 0.0
+    for t in players_with_totals:
+        for c in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']:
+            totals[c] += t.get(c, 0) or 0
+        fgm += t.get('FGM', 0) or 0
+        fga += t.get('FGA', 0) or 0
+        ftm += t.get('FTM', 0) or 0
+        fta += t.get('FTA', 0) or 0
+    totals['FG%'] = (fgm / fga) if fga and fga > 0 else 0.0
+    totals['FT%'] = (ftm / fta) if fta and fta > 0 else 0.0
+    return totals
+
+@app.route('/api/league/roster-totals', methods=['GET'])
+def get_roster_totals():
+    """Roster category totals per team: sum each player's season totals for PTS, REB, AST, STL, BLK, FG% (from FGM/FGA), FT% (from FTM/FTA), 3PM, TO."""
+    try:
+        league = get_league_instance()
+        year = YEAR
+        teams_list = []
+        if league and league.teams:
+            for team in league.teams:
+                players_with_totals = []
+                for p in getattr(team, 'roster', []) or []:
+                    st = getattr(p, 'stats', None) or {}
+                    total = st.get(f'{league.year}_total', {}).get('total', {}) or {}
+                    if total:
+                        players_with_totals.append(total)
+                roster_totals = _aggregate_roster_totals(players_with_totals)
+                logo_url = getattr(team, 'logo_url', '') or ''
+                if logo_url:
+                    if logo_url.startswith('//'):
+                        logo_url = f'https:{logo_url}'
+                    elif logo_url.startswith('/'):
+                        logo_url = f'https://a.espncdn.com{logo_url}'
+                teams_list.append({
+                    'name': getattr(team, 'team_name', str(getattr(team, 'team_id', ''))),
+                    'team_id': getattr(team, 'team_id', 0),
+                    'logo_url': logo_url or None,
+                    'roster_totals': roster_totals,
+                })
+            return jsonify({'teams': teams_list, 'season': league.year})
+        # Fallback: aggregate from players.json
+        players_path = DATA_DIR / 'players.json'
+        summary_path = DATA_DIR / 'league_summary.json'
+        if not players_path.exists() or not summary_path.exists():
+            return jsonify({'error': 'Roster totals require league API or players.json + league_summary.json'}), 503
+        with open(players_path, 'r') as f:
+            players_data = json.load(f)
+        with open(summary_path, 'r') as f:
+            summary = json.load(f)
+        year = summary.get('season', YEAR)
+        team_id_map = {t['name']: {'team_id': t['team_id'], 'logo_url': t.get('logo_url')} for t in summary.get('teams', [])}
+        by_team = {}
+        for p in players_data.get('players', []):
+            team_name = p.get('team') or ''
+            if not team_name:
+                continue
+            st = p.get('stats', {}) or {}
+            total = st.get(f'{year}_total', {}).get('total', {}) or {}
+            if not total:
+                continue
+            by_team.setdefault(team_name, []).append(total)
+        for team_name, lst in by_team.items():
+            info = team_id_map.get(team_name, {})
+            teams_list.append({
+                'name': team_name,
+                'team_id': info.get('team_id', 0),
+                'logo_url': info.get('logo_url'),
+                'roster_totals': _aggregate_roster_totals(lst),
+            })
+        return jsonify({'teams': teams_list, 'season': year})
+    except Exception as e:
+        print(f"Error in /api/league/roster-totals: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/players', methods=['GET'])
 def get_players():
     """Get all player data"""

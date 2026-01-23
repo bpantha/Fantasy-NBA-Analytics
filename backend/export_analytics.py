@@ -8,13 +8,61 @@ import os
 import sys
 import json
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from collections import defaultdict
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from espn_api.basketball import League
+
+
+def _is_healthy_or_dtd(player):
+    """Exclude only OUT; include healthy, DTD, and unknown/empty."""
+    status = getattr(player, 'injuryStatus', None) or ''
+    return (status or '').upper() != 'OUT'
+
+
+def _played_in_game(player):
+    """True if the player has MIN > 0 (actually played in a game)."""
+    if not getattr(player, 'points_breakdown', None):
+        return False
+    min_val = player.points_breakdown.get('MIN', 0)
+    return isinstance(min_val, (int, float)) and min_val > 0
+
+
+def _get_week_monday_sunday():
+    """Monday 00:00 and Sunday 23:59:59.999 for the week containing today."""
+    now = datetime.now()
+    # 0=Monday, 6=Sunday
+    weekday = now.weekday()
+    week_monday = (now - timedelta(days=weekday)).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_sunday = week_monday + timedelta(days=6, hours=23, minutes=59, seconds=59, microseconds=999999)
+    return week_monday, week_sunday
+
+
+def _get_scoring_periods_in_week_range(league, matchup_period, week_monday, week_sunday):
+    """Scoring period IDs in this matchup that have at least one game in [week_monday, week_sunday]."""
+    sp_in_range = set()
+    pro_schedule = getattr(league, 'pro_schedule', None) or {}
+    for _pro_team_id, periods in pro_schedule.items():
+        for sp_str, games in (periods or {}).items():
+            if not games:
+                continue
+            for g in games:
+                try:
+                    d = datetime.fromtimestamp(g['date'] / 1000.0)
+                except (KeyError, TypeError):
+                    continue
+                if week_monday <= d <= week_sunday:
+                    sp_in_range.add(str(sp_str))
+                    break
+    matchup_sps = league.matchup_ids.get(matchup_period, [])
+    result = [sp for sp in matchup_sps if str(sp) in sp_in_range]
+    if not result and matchup_sps:
+        # Fallback: use all matchup scoring periods (e.g. if pro_schedule missing)
+        result = list(matchup_sps)
+    return result
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -128,41 +176,90 @@ def export_week_analytics(league, matchup_period):
                 if categories_won >= 5:
                     teams_beaten[team1].add(team2)
         
-        # Calculate minutes played
+        # Calculate minutes played and games played: only healthy/DTD players who played (MIN>0).
+        # For current week: only include games Mon–Sun; aggregate over scoring periods in that range.
         team_minutes = defaultdict(float)
+        team_games_played = defaultdict(float)
         matchup_minutes = {}
-        
-        for box_score in box_scores:
-            home_team = box_score.home_team
-            away_team = box_score.away_team
-            
-            if isinstance(home_team, int):
-                home_team = league.get_team_data(home_team)
-            if isinstance(away_team, int):
-                away_team = league.get_team_data(away_team)
-            
-            if hasattr(box_score, 'home_lineup') and hasattr(box_score, 'away_lineup'):
-                home_minutes = 0
-                away_minutes = 0
-                
-                for player in box_score.home_lineup:
-                    if hasattr(player, 'points_breakdown') and player.points_breakdown:
-                        min_value = player.points_breakdown.get('MIN', 0)
-                        if isinstance(min_value, (int, float)) and min_value > 0:
-                            home_minutes += min_value
-                
-                for player in box_score.away_lineup:
-                    if hasattr(player, 'points_breakdown') and player.points_breakdown:
-                        min_value = player.points_breakdown.get('MIN', 0)
-                        if isinstance(min_value, (int, float)) and min_value > 0:
-                            away_minutes += min_value
-                
-                team_minutes[home_team] += home_minutes
-                team_minutes[away_team] += away_minutes
-                matchup_minutes[(home_team, away_team)] = home_minutes
-                matchup_minutes[(away_team, home_team)] = away_minutes
-        
+        is_current = (matchup_period == league.currentMatchupPeriod)
+
+        def _add_from_lineup(lineup):
+            mins, gp = 0.0, 0.0
+            for p in lineup:
+                if not _is_healthy_or_dtd(p) or not _played_in_game(p):
+                    continue
+                b = getattr(p, 'points_breakdown', None) or {}
+                m = b.get('MIN', 0) or 0
+                g = b.get('GP', 0) or 0
+                if isinstance(m, (int, float)) and m > 0:
+                    mins += float(m)
+                if isinstance(g, (int, float)) and g > 0:
+                    gp += float(g)
+            return mins, gp
+
+        if is_current:
+            week_monday, week_sunday = _get_week_monday_sunday()
+            sp_list = _get_scoring_periods_in_week_range(league, matchup_period, week_monday, week_sunday)
+            if sp_list:
+                for sp in sp_list:
+                    try:
+                        sp_scores = league.box_scores(matchup_period=matchup_period, scoring_period=sp, matchup_total=False)
+                    except Exception:
+                        continue
+                    for bs in sp_scores or []:
+                        ht, at = bs.home_team, bs.away_team
+                        if isinstance(ht, int):
+                            ht = league.get_team_data(ht)
+                        if isinstance(at, int):
+                            at = league.get_team_data(at)
+                        if not (hasattr(bs, 'home_lineup') and hasattr(bs, 'away_lineup')):
+                            continue
+                        hm, hg = _add_from_lineup(bs.home_lineup)
+                        am, ag = _add_from_lineup(bs.away_lineup)
+                        team_minutes[ht] += hm
+                        team_minutes[at] += am
+                        team_games_played[ht] += hg
+                        team_games_played[at] += ag
+                        matchup_minutes[(ht, at)] = matchup_minutes.get((ht, at), 0) + hm
+                        matchup_minutes[(at, ht)] = matchup_minutes.get((at, ht), 0) + am
+            else:
+                # Fallback: use existing box_scores with health/played filters
+                for box_score in box_scores:
+                    ht = box_score.home_team
+                    at = box_score.away_team
+                    if isinstance(ht, int):
+                        ht = league.get_team_data(ht)
+                    if isinstance(at, int):
+                        at = league.get_team_data(at)
+                    if hasattr(box_score, 'home_lineup') and hasattr(box_score, 'away_lineup'):
+                        hm, hg = _add_from_lineup(box_score.home_lineup)
+                        am, ag = _add_from_lineup(box_score.away_lineup)
+                        team_minutes[ht] += hm
+                        team_minutes[at] += am
+                        team_games_played[ht] += hg
+                        team_games_played[at] += ag
+                        matchup_minutes[(ht, at)] = hm
+                        matchup_minutes[(at, ht)] = am
+        else:
+            for box_score in box_scores:
+                ht = box_score.home_team
+                at = box_score.away_team
+                if isinstance(ht, int):
+                    ht = league.get_team_data(ht)
+                if isinstance(at, int):
+                    at = league.get_team_data(at)
+                if hasattr(box_score, 'home_lineup') and hasattr(box_score, 'away_lineup'):
+                    hm, hg = _add_from_lineup(box_score.home_lineup)
+                    am, ag = _add_from_lineup(box_score.away_lineup)
+                    team_minutes[ht] += hm
+                    team_minutes[at] += am
+                    team_games_played[ht] += hg
+                    team_games_played[at] += ag
+                    matchup_minutes[(ht, at)] = hm
+                    matchup_minutes[(at, ht)] = am
+
         league_avg_minutes = sum(team_minutes.values()) / len(team_minutes) if team_minutes else 0
+        league_avg_games_played = sum(team_games_played.values()) / len(team_games_played) if team_games_played else 0
         
         # Build team data structure
         teams_data = []
@@ -203,6 +300,7 @@ def export_week_analytics(league, matchup_period):
         for team, stats in sorted_teams:
             team_name = get_team_display_name(team)
             minutes = team_minutes.get(team, 0)
+            games_played = team_games_played.get(team, 0)
             
             # Get category totals for this team
             category_totals = {}
@@ -249,6 +347,9 @@ def export_week_analytics(league, matchup_period):
                 'opponent_name': opponent_name,
                 'minutes_vs_league_avg': minutes - league_avg_minutes,
                 'league_avg_minutes': league_avg_minutes,
+                'games_played': games_played,
+                'games_played_vs_league_avg': games_played - league_avg_games_played,
+                'league_avg_games_played': league_avg_games_played,
                 'category_totals': category_totals,  # Add category totals
                 'beaten_teams': [get_team_display_name(t) for t in stats['beaten_teams']],
                 'matchup_details': stats['matchup_details']
@@ -258,6 +359,7 @@ def export_week_analytics(league, matchup_period):
             'matchup_period': matchup_period,
             'export_date': datetime.now().isoformat(),
             'league_avg_minutes': league_avg_minutes,
+            'league_avg_games_played': league_avg_games_played,
             'teams': teams_data
         }
     
