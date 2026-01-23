@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import WeekModal from './WeekModal'
+import OpponentDetailModal from './OpponentDetailModal'
 
 interface Team {
   name: string
@@ -64,6 +66,9 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const [graphData, setGraphData] = useState<Array<{ week: number; teamsBeaten: number }>>([])
   const [opponentMinutes, setOpponentMinutes] = useState<Record<string, { minutes: number; vsAvg: number; week: number }>>({})
   const [compareTeam, setCompareTeam] = useState<string>('')
+  const [showWeekModal, setShowWeekModal] = useState(false)
+  const [weekForModal, setWeekForModal] = useState<number | null>(null)
+  const [showOpponentModal, setShowOpponentModal] = useState(false)
 
   // Set default selectedWeek when weeks load
   useEffect(() => {
@@ -186,6 +191,8 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
     if (data && data.activePayload && data.activePayload[0]) {
       const week = data.activePayload[0].payload.week
       setSelectedWeek(week)
+      setWeekForModal(week)
+      setShowWeekModal(true)
     }
   }
 
@@ -482,7 +489,11 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
             {/* Opponent Matchup */}
             {selectedTeamData.opponent_name && (
-              <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+              <div
+                className="bg-gray-800 p-4 md:p-6 rounded-lg cursor-pointer hover:bg-gray-700/80 transition-colors"
+                onClick={() => setShowOpponentModal(true)}
+                role="button"
+              >
                 <h3 className="text-lg md:text-xl font-bold mb-4">⚔️ vs {selectedTeamData.opponent_name}</h3>
                 {selectedTeamData.matchup_details[selectedTeamData.opponent_name] && (
                   <div className="grid grid-cols-3 gap-2 md:gap-4">
@@ -506,6 +517,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
                     </div>
                   </div>
                 )}
+                <p className="text-xs text-blue-400 mt-2">👆 Click for category breakdown</p>
               </div>
             )}
 
@@ -599,6 +611,25 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
             </div>
           </div>
         </>
+      )}
+
+      {showWeekModal && weekForModal != null && (
+        <WeekModal
+          week={weekForModal}
+          apiBase={apiBase}
+          onClose={() => { setShowWeekModal(false); setWeekForModal(null); }}
+        />
+      )}
+
+      {showOpponentModal && selectedTeamData?.opponent_name && selectedTeamData.matchup_details[selectedTeamData.opponent_name] && weekData && (
+        <OpponentDetailModal
+          teamName={selectedTeam}
+          opponentName={selectedTeamData.opponent_name}
+          matchupDetails={selectedTeamData.matchup_details[selectedTeamData.opponent_name]}
+          teamCategoryTotals={selectedTeamData.category_totals ?? {}}
+          opponentCategoryTotals={weekData.teams.find(t => t.name === selectedTeamData.opponent_name)?.category_totals ?? {}}
+          onClose={() => setShowOpponentModal(false)}
+        />
       )}
     </div>
   )

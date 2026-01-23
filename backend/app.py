@@ -314,7 +314,7 @@ def get_roster_totals():
 
 @app.route('/api/league/upcoming-matchups', methods=['GET'])
 def get_upcoming_matchups():
-    """Current week matchups with category-by-category preview (favored by roster totals)."""
+    """Next week (current + 1) matchups with category-by-category preview (favored by roster totals)."""
     try:
         league = get_league_instance()
         if not league:
@@ -323,10 +323,11 @@ def get_upcoming_matchups():
         by_name = {t['name']: t.get('roster_totals', {}) for t in roster_teams}
 
         league.fetch_league()
-        current = league.current_week
-        box_scores = league.box_scores(matchup_period=league.currentMatchupPeriod, scoring_period=current, matchup_total=True)
+        next_period = league.currentMatchupPeriod + 1
+        # For a future week, omit scoring_period; box_scores returns matchup pairings
+        box_scores = league.box_scores(matchup_period=next_period, matchup_total=True)
         if not box_scores:
-            return jsonify({'matchups': []})
+            return jsonify({'matchups': [], 'matchup_period': next_period})
 
         matchups = []
         for bs in box_scores:
@@ -350,7 +351,7 @@ def get_upcoming_matchups():
                 cats.append({'category': c, 'team1_value': v1, 'team2_value': v2, 'favored': favored})
             matchups.append({'team1': t1, 'team2': t2, 'categories': cats})
 
-        return jsonify({'matchups': matchups})
+        return jsonify({'matchups': matchups, 'matchup_period': next_period})
     except Exception as e:
         print(f"Error in /api/league/upcoming-matchups: {e}")
         import traceback

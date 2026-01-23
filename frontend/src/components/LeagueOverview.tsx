@@ -6,6 +6,9 @@ import TeamModal from './TeamModal'
 import WeekModal from './WeekModal'
 import CategoryComparisonModal from './CategoryComparisonModal'
 import ImprovementComparisonModal from './ImprovementComparisonModal'
+import CategoryDominatorModal from './CategoryDominatorModal'
+import MetricRankModal from './MetricRankModal'
+import ClutchDetailModal from './ClutchDetailModal'
 
 interface LeagueStats {
   overall_performance: {
@@ -77,6 +80,7 @@ interface LeagueStats {
     variance: number
     total_teams_beaten: number
     total_minutes: number
+    avg_minutes_per_week?: number
     efficiency: number
     logo_url?: string
     close_wins?: number
@@ -120,6 +124,9 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [showImprovementModal, setShowImprovementModal] = useState(false)
   const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [categoryDominatorModal, setCategoryDominatorModal] = useState<string | null>(null)
+  const [metricRankModal, setMetricRankModal] = useState<{ title: string; valueKey: string; valueLabel: string; formatValue?: (v: unknown) => string; sortAscending?: boolean } | null>(null)
+  const [showClutchModal, setShowClutchModal] = useState(false)
 
   // Load league stats (SWR caches and dedupes)
   const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats`)
@@ -127,7 +134,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const currentWeek = summary?.current_matchup_period ?? null
   const weekKey = currentWeek ? `${apiBase}/week/${currentWeek}?live=true` : null
   const { data: currentWeekData, error: errorCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
-  const { data: upcomingData } = useSWR<{ matchups: Array<{ team1: string; team2: string; categories: Array<{ category: string; team1_value: number; team2_value: number; favored: string }> }> }>(`${apiBase}/league/upcoming-matchups`)
 
   const loading = loadingStats
   const loadingCurrentWeek = !!currentWeek && !currentWeekData && !errorCurrentWeek
@@ -298,7 +304,12 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
               : dominator.value.toFixed(1)
             
             return (
-              <div key={cat} className="bg-gradient-to-br from-purple-600 to-purple-800 p-3 md:p-4 rounded-lg">
+              <div
+                key={cat}
+                className="bg-gradient-to-br from-purple-600 to-purple-800 p-3 md:p-4 rounded-lg cursor-pointer hover:ring-2 hover:ring-purple-400 transition-shadow"
+                onClick={() => setCategoryDominatorModal(cat)}
+                role="button"
+              >
                 <div className="text-center">
                   <div className="text-2xl md:text-3xl mb-1">{emoji}</div>
                   <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">{cat}</h3>
@@ -405,35 +416,6 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       {/* Rest of content - only show after current week data is loaded */}
       {currentWeekData && currentWeek && (
         <>
-        {/* Upcoming Matchup Previews */}
-        {upcomingData?.matchups && upcomingData.matchups.length > 0 && (
-          <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-            <h2 className="text-xl md:text-2xl font-bold mb-4">🎯 This Week&apos;s Matchup Previews</h2>
-            <p className="text-xs md:text-sm text-gray-400 mb-4">Category favor based on roster totals (season avg). Favored = better projected total.</p>
-            <div className="space-y-4">
-              {upcomingData.matchups.map((m, idx) => (
-                <div key={idx} className="bg-gray-700 p-3 md:p-4 rounded-lg">
-                  <h3 className="font-semibold mb-2">{m.team1} vs {m.team2}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {m.categories.map((c) => (
-                      <span
-                        key={c.category}
-                        className={`px-2 py-1 rounded text-xs md:text-sm ${
-                          c.favored === 'toss' ? 'bg-gray-600 text-gray-300' :
-                          c.favored === 'team1' ? 'bg-green-800 text-green-200' : 'bg-blue-800 text-blue-200'
-                        }`}
-                        title={`${c.category}: ${c.team1_value} vs ${c.team2_value}`}
-                      >
-                        {c.category} → {c.favored === 'toss' ? 'Toss' : c.favored === 'team1' ? m.team1 : m.team2}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Streaks & Trends KPI Bar */}
         {stats.streaks_trends && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
@@ -484,7 +466,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         {/* Clutch & Close Matchups */}
         {stats.close_matchups && (
           <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
-            <h2 className="text-xl md:text-2xl font-bold mb-4">⚡ Clutch & Close vs Blowouts</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-xl md:text-2xl font-bold">⚡ Clutch & Close vs Blowouts</h2>
+              <button
+                onClick={() => setShowClutchModal(true)}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                View full table
+              </button>
+            </div>
             <p className="text-xs md:text-sm text-gray-400 mb-4">Close = 5-4 or 6-3. Blowout = 7-2 or worse. Counts scheduled opponent games only (excl. current week).</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               <div>
@@ -665,7 +655,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 Overall Performance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.overall_performance.total_wins_leader && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Total Wins', valueKey: 'total_wins', valueLabel: 'Total Wins' })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">🥇 Total Wins Leader</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.total_wins_leader.name}
@@ -675,7 +668,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
           
           {stats.overall_performance.win_pct_leader && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Win %', valueKey: 'win_percentage', valueLabel: 'Win %', formatValue: (v) => (typeof v === 'number' ? v.toFixed(1) + '%' : String(v ?? '—')) })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">📈 Win % Leader</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.win_pct_leader.name}
@@ -685,7 +681,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
           
           {stats.overall_performance.most_dominant && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Avg teams beaten', valueKey: 'avg_teams_beaten', valueLabel: 'Avg teams beaten' })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">👑 Most Dominant</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.most_dominant.name}
@@ -696,7 +695,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
           
           {stats.overall_performance.most_consistent && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Variance (lower = more consistent)', valueKey: 'variance', valueLabel: 'Variance', sortAscending: true })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">🎯 Most Consistent</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.overall_performance.most_consistent.name}
@@ -712,7 +714,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <h2 className="text-xl md:text-2xl font-bold mb-4">⚡ Activity Metrics</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           {stats.activity_metrics.most_active && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Avg minutes per week', valueKey: 'avg_minutes_per_week', valueLabel: 'Avg min/week' })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">🔥 Most Active</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.activity_metrics.most_active.name}
@@ -723,7 +728,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
           )}
           
           {stats.activity_metrics.efficiency_leader && (
-            <div className="bg-gray-700 p-3 md:p-4 rounded-lg">
+            <div
+              className="bg-gray-700 p-3 md:p-4 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+              onClick={() => setMetricRankModal({ title: 'Efficiency', valueKey: 'efficiency', valueLabel: 'Efficiency' })}
+            >
               <h3 className="text-xs md:text-sm text-gray-400 mb-1">💎 Efficiency Leader</h3>
               <p className="text-base md:text-lg font-bold text-blue-400">
                 {stats.activity_metrics.efficiency_leader.name}
@@ -854,6 +862,34 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <ImprovementComparisonModal
           apiBase={apiBase}
           onClose={() => setShowImprovementModal(false)}
+        />
+      )}
+
+      {categoryDominatorModal && currentWeekData && (
+        <CategoryDominatorModal
+          category={categoryDominatorModal}
+          teams={currentWeekData.teams}
+          emoji={categoryEmojis[categoryDominatorModal]}
+          onClose={() => setCategoryDominatorModal(null)}
+        />
+      )}
+
+      {metricRankModal && stats.teams_list && (
+        <MetricRankModal
+          title={metricRankModal.title}
+          valueKey={metricRankModal.valueKey}
+          valueLabel={metricRankModal.valueLabel}
+          teams={stats.teams_list}
+          formatValue={metricRankModal.formatValue}
+          sortAscending={metricRankModal.sortAscending}
+          onClose={() => setMetricRankModal(null)}
+        />
+      )}
+
+      {showClutchModal && stats.teams_list && (
+        <ClutchDetailModal
+          teams={stats.teams_list}
+          onClose={() => setShowClutchModal(false)}
         />
       )}
     </div>

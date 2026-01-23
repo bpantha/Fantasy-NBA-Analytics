@@ -6,13 +6,14 @@ import axios from 'axios'
 import LeagueOverview from '../components/LeagueOverview'
 import TeamVsLeague from '../components/TeamVsLeague'
 import LivePredictions from '../components/LivePredictions'
+import UpcomingMatchup from '../components/UpcomingMatchup'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const apiFetcher = (url: string) => axios.get(url).then((r) => r.data)
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'team' | 'predictions'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'team' | 'upcoming' | 'predictions'>('overview')
 
   return (
     <SWRConfig
@@ -59,6 +60,16 @@ export default function Home() {
               Team vs League
             </button>
             <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`px-4 py-2 md:px-6 md:py-3 text-sm md:text-base transition-colors ${
+                activeTab === 'upcoming' 
+                  ? 'border-b-2 border-blue-500 text-blue-400 font-semibold' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Upcoming Matchup
+            </button>
+            <button
               onClick={() => setActiveTab('predictions')}
               className={`px-4 py-2 md:px-6 md:py-3 text-sm md:text-base transition-colors ${
                 activeTab === 'predictions' 
@@ -76,6 +87,7 @@ export default function Home() {
       <main className="container mx-auto p-2 md:p-4 pb-20">
         {activeTab === 'overview' && <LeagueOverview apiBase={API_BASE} />}
         {activeTab === 'team' && <TeamVsLeague apiBase={API_BASE} />}
+        {activeTab === 'upcoming' && <UpcomingMatchup apiBase={API_BASE} />}
         {activeTab === 'predictions' && <LivePredictions apiBase={API_BASE} />}
       </main>
 
