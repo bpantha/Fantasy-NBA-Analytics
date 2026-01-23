@@ -442,7 +442,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
               </div>
             </div>
             <p className="text-xs md:text-sm text-gray-400 mb-4">
-              Season totals across all players on each team’s roster. Compare highlights green when you’re better, red when worse (for TO, lower is better).
+              Sum of each player's season average (e.g. 20 ppg + 21 ppg = 41 PTS). Compare highlights green when you're better, red when worse (for TO, lower is better).
             </p>
             {loadingRosterTotals && (
               <div className="flex items-center gap-2 text-gray-400 py-4">

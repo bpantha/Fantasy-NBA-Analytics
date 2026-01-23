@@ -153,37 +153,52 @@ def get_league_summary():
 
 STANDARD_CATS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
 
-def _aggregate_roster_totals(players_with_totals):
-    """Sum counting stats; compute FG% and FT% from FGM/FGA, FTM/FTA."""
+def _player_season_avg(stat_block):
+    """Get per-game averages from stat block: prefer 'avg'; if missing, derive from total/GP."""
+    if not stat_block:
+        return {}
+    avg = stat_block.get('avg')
+    if avg and isinstance(avg, dict):
+        return avg
+    total = stat_block.get('total') or {}
+    gp = total.get('GP') or 0
+    if not gp:
+        return {}
+    keys = ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO', 'FGM', 'FGA', 'FTM', 'FTA']
+    return {k: (total.get(k) or 0) / gp for k in keys}
+
+def _aggregate_roster_totals(players_with_avgs):
+    """Sum each player's season average. Counting: PTS, REB, AST, STL, BLK, 3PM, TO. FG% = sum(avg FGM)/sum(avg FGA), FT% = sum(avg FTM)/sum(avg FTA)."""
     totals = {c: 0.0 for c in STANDARD_CATS}
     fgm = fga = ftm = fta = 0.0
-    for t in players_with_totals:
+    for a in players_with_avgs:
         for c in ['PTS', 'REB', 'AST', 'STL', 'BLK', '3PM', 'TO']:
-            totals[c] += t.get(c, 0) or 0
-        fgm += t.get('FGM', 0) or 0
-        fga += t.get('FGA', 0) or 0
-        ftm += t.get('FTM', 0) or 0
-        fta += t.get('FTA', 0) or 0
+            totals[c] += a.get(c, 0) or 0
+        fgm += a.get('FGM', 0) or 0
+        fga += a.get('FGA', 0) or 0
+        ftm += a.get('FTM', 0) or 0
+        fta += a.get('FTA', 0) or 0
     totals['FG%'] = (fgm / fga) if fga and fga > 0 else 0.0
     totals['FT%'] = (ftm / fta) if fta and fta > 0 else 0.0
     return totals
 
 @app.route('/api/league/roster-totals', methods=['GET'])
 def get_roster_totals():
-    """Roster category totals per team: sum each player's season totals for PTS, REB, AST, STL, BLK, FG% (from FGM/FGA), FT% (from FTM/FTA), 3PM, TO."""
+    """Roster category totals per team: sum of each player's season average (e.g. 20 ppg + 21 ppg = 41 PTS)."""
     try:
         league = get_league_instance()
         year = YEAR
         teams_list = []
         if league and league.teams:
             for team in league.teams:
-                players_with_totals = []
+                players_with_avgs = []
                 for p in getattr(team, 'roster', []) or []:
                     st = getattr(p, 'stats', None) or {}
-                    total = st.get(f'{league.year}_total', {}).get('total', {}) or {}
-                    if total:
-                        players_with_totals.append(total)
-                roster_totals = _aggregate_roster_totals(players_with_totals)
+                    stat_block = st.get(f'{league.year}_total', {}) or {}
+                    a = _player_season_avg(stat_block)
+                    if a:
+                        players_with_avgs.append(a)
+                roster_totals = _aggregate_roster_totals(players_with_avgs)
                 logo_url = getattr(team, 'logo_url', '') or ''
                 if logo_url:
                     if logo_url.startswith('//'):
@@ -214,10 +229,11 @@ def get_roster_totals():
             if not team_name:
                 continue
             st = p.get('stats', {}) or {}
-            total = st.get(f'{year}_total', {}).get('total', {}) or {}
-            if not total:
+            stat_block = st.get(f'{year}_total', {}) or {}
+            a = _player_season_avg(stat_block)
+            if not a:
                 continue
-            by_team.setdefault(team_name, []).append(total)
+            by_team.setdefault(team_name, []).append(a)
         for team_name, lst in by_team.items():
             info = team_id_map.get(team_name, {})
             teams_list.append({
