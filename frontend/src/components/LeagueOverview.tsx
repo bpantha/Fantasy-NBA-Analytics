@@ -82,9 +82,31 @@ interface LeagueStats {
   }>
 }
 
+interface CurrentWeekTeam {
+  name: string
+  matchup_details: Record<string, {
+    won: number
+    lost: number
+    tied: number
+    won_cats: string[]
+    lost_cats: string[]
+  }>
+  beaten_teams: string[]
+  category_totals: Record<string, number>
+  logo_url?: string
+}
+
+interface CurrentWeekData {
+  matchup_period: number
+  teams: CurrentWeekTeam[]
+}
+
 export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [stats, setStats] = useState<LeagueStats | null>(null)
+  const [currentWeekData, setCurrentWeekData] = useState<CurrentWeekData | null>(null)
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingCurrentWeek, setLoadingCurrentWeek] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -92,6 +114,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
+  // Load league stats
   useEffect(() => {
     axios.get(`${apiBase}/league/stats`)
       .then(res => {
@@ -101,6 +124,30 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       .catch(err => {
         console.error('Error loading league stats:', err)
         setLoading(false)
+      })
+  }, [apiBase])
+
+  // Get current week and load current week data
+  useEffect(() => {
+    axios.get(`${apiBase}/league/summary`)
+      .then(res => {
+        const week = res.data.current_matchup_period
+        setCurrentWeek(week)
+        
+        // Load current week data with live=true
+        setLoadingCurrentWeek(true)
+        axios.get(`${apiBase}/week/${week}`, { params: { live: 'true' } })
+          .then(weekRes => {
+            setCurrentWeekData(weekRes.data)
+            setLoadingCurrentWeek(false)
+          })
+          .catch(err => {
+            console.error('Error loading current week data:', err)
+            setLoadingCurrentWeek(false)
+          })
+      })
+      .catch(err => {
+        console.error('Error loading current week:', err)
       })
   }, [apiBase])
 
@@ -155,8 +202,201 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     }
   }) : []
 
+  // Calculate current week category dominators and team stats
+  const currentWeekCategoryDominators: Record<string, { team: string; value: number }> = {}
+  const currentWeekTeamStats: Array<{
+    team: string
+    opponents_beaten: string[]
+    best_category: string
+    logo_url?: string
+  }> = []
+
+  if (currentWeekData && currentWeekData.teams) {
+    // Find category dominators (teams with highest value in each category, except TO where lower is better)
+    categories.forEach(cat => {
+      let bestValue = cat === 'TO' ? Infinity : -Infinity
+      let dominatorTeam = ''
+      
+      currentWeekData.teams.forEach(team => {
+        const value = team.category_totals?.[cat] || 0
+        
+        if (cat === 'TO') {
+          // For TO, lower is better (fewer turnovers)
+          if (value > 0 && value < bestValue) {
+            bestValue = value
+            dominatorTeam = team.name
+          }
+        } else {
+          // For other categories, higher is better
+          if (value > bestValue) {
+            bestValue = value
+            dominatorTeam = team.name
+          }
+        }
+      })
+      
+      if (dominatorTeam) {
+        currentWeekCategoryDominators[cat] = {
+          team: dominatorTeam,
+          value: bestValue
+        }
+      }
+    })
+
+    // Calculate opponents beaten and best category for each team
+    currentWeekData.teams.forEach(team => {
+      // Get opponents beaten (teams they're winning 5+ categories against)
+      const opponentsBeaten = team.beaten_teams || []
+      
+      // Find best category (category they win most often)
+      const categoryWinCounts: Record<string, number> = {}
+      Object.values(team.matchup_details || {}).forEach(details => {
+        details.won_cats?.forEach((cat: string) => {
+          categoryWinCounts[cat] = (categoryWinCounts[cat] || 0) + 1
+        })
+      })
+      
+      let bestCategory = ''
+      let maxWins = 0
+      Object.entries(categoryWinCounts).forEach(([cat, wins]) => {
+        if (wins > maxWins) {
+          maxWins = wins
+          bestCategory = cat
+        }
+      })
+      
+      currentWeekTeamStats.push({
+        team: team.name,
+        opponents_beaten: opponentsBeaten,
+        best_category: bestCategory || 'N/A',
+        logo_url: team.logo_url
+      })
+    })
+  }
+
   return (
     <div className="space-y-6">
+      {/* Current Week Category Dominators KPIs */}
+      {currentWeekData && currentWeek && (
+        <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">🏆 Week {currentWeek} Category Dominators</h2>
+          {loadingCurrentWeek ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto mb-2"></div>
+              <p className="text-gray-400 text-sm">Loading current week data...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+              {categories.map(cat => {
+                const dominator = currentWeekCategoryDominators[cat]
+                if (!dominator) return null
+                
+                const emoji = categoryEmojis[cat] || '📊'
+                const displayValue = cat === 'FG%' || cat === 'FT%' 
+                  ? `${(dominator.value * 100).toFixed(1)}%`
+                  : cat === 'TO'
+                  ? dominator.value.toFixed(0)  // TO is a whole number
+                  : dominator.value.toFixed(1)
+                
+                return (
+                  <div key={cat} className="bg-gradient-to-br from-purple-600 to-purple-800 p-3 md:p-4 rounded-lg">
+                    <div className="text-center">
+                      <div className="text-2xl md:text-3xl mb-1">{emoji}</div>
+                      <h3 className="text-xs md:text-sm font-semibold text-purple-200 mb-2">{cat}</h3>
+                      <p className="text-sm md:text-base font-bold text-white truncate" title={dominator.team}>
+                        {dominator.team}
+                      </p>
+                      <p className="text-lg md:text-xl font-bold text-yellow-300 mt-1">{displayValue}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Current Week Team Performance Table */}
+      {currentWeekData && currentWeek && !loadingCurrentWeek && (
+        <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Week {currentWeek} Team Performance</h2>
+          <div className="min-w-full">
+            <table className="w-full text-sm md:text-base">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Team</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Opponents Beaten</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left">Best Category</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentWeekTeamStats.map((teamStat, index) => (
+                  <tr 
+                    key={teamStat.team} 
+                    className="border-t border-gray-700 hover:bg-gray-750 cursor-pointer"
+                    onClick={() => setSelectedTeam(teamStat.team)}
+                  >
+                    <td className="px-2 md:px-4 py-2 md:py-3">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {teamStat.logo_url ? (
+                            <img 
+                              src={teamStat.logo_url} 
+                              alt={teamStat.team}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const img = e.target as HTMLImageElement
+                                img.style.display = 'none'
+                                const parent = img.parentElement
+                                if (parent && !parent.querySelector('.logo-placeholder')) {
+                                  const placeholder = document.createElement('span')
+                                  placeholder.className = 'logo-placeholder text-xs md:text-sm font-bold text-gray-400'
+                                  placeholder.textContent = teamStat.team.charAt(0).toUpperCase()
+                                  parent.appendChild(placeholder)
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xs md:text-sm font-bold text-gray-400">
+                              {teamStat.team.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                          {teamStat.team}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-2 md:px-4 py-2 md:py-3">
+                      {teamStat.opponents_beaten.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 md:gap-2">
+                          {teamStat.opponents_beaten.map((opponent, idx) => (
+                            <span 
+                              key={idx} 
+                              className="px-2 py-1 bg-green-700 text-green-200 rounded text-xs md:text-sm"
+                            >
+                              {opponent}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 text-xs md:text-sm">None</span>
+                      )}
+                    </td>
+                    <td className="px-2 md:px-4 py-2 md:py-3">
+                      <span className="px-2 py-1 bg-blue-700 text-blue-200 rounded text-xs md:text-sm font-semibold">
+                        {categoryEmojis[teamStat.best_category] || ''} {teamStat.best_category}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs md:text-sm text-gray-400 mt-3">👆 Click on a team name to view details</p>
+        </section>
+      )}
+
       {/* Streaks & Trends KPI Bar */}
       {stats.streaks_trends && (
         <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
