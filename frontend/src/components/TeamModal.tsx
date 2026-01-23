@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import useSWR from 'swr'
 
 interface TeamModalProps {
   teamName: string
@@ -10,52 +10,24 @@ interface TeamModalProps {
 }
 
 export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps) {
-  const [weeks, setWeeks] = useState<number[]>([])
+  const { data: weeksData } = useSWR<{ weeks: number[] }>(`${apiBase}/weeks`)
+  const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
+
+  const weeks = (weeksData?.weeks ?? []).sort((a: number, b: number) => b - a)
+  const currentWeek = summary?.current_matchup_period ?? null
+
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
-  const [weekData, setWeekData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
 
   useEffect(() => {
-    axios.get(`${apiBase}/weeks`)
-      .then(res => {
-        const availableWeeks = res.data.weeks.sort((a: number, b: number) => b - a)
-        setWeeks(availableWeeks)
-        if (availableWeeks.length > 0) {
-          setSelectedWeek(availableWeeks[0])
-        }
-      })
-      .catch(err => console.error('Error loading weeks:', err))
-    
-    // Get current week from league summary
-    axios.get(`${apiBase}/league/summary`)
-      .then(res => {
-        setCurrentWeek(res.data.current_matchup_period)
-      })
-      .catch(err => console.error('Error loading current week:', err))
-  }, [apiBase])
-
-  useEffect(() => {
-    if (selectedWeek) {
-      setLoading(true)
-      // Only fetch live data if this is the current week
-      const params: any = {}
-      if (currentWeek && selectedWeek === currentWeek) {
-        params.live = 'true'
-      }
-      axios.get(`${apiBase}/week/${selectedWeek}`, { params })
-        .then(res => {
-          setWeekData(res.data)
-          setLoading(false)
-        })
-        .catch(err => {
-          console.error('Error loading week data:', err)
-          setLoading(false)
-        })
-    } else {
-      setWeekData(null)
+    if (weeks.length > 0 && selectedWeek == null) {
+      setSelectedWeek(weeks[0])
     }
-  }, [selectedWeek, apiBase, currentWeek])
+  }, [weeks, selectedWeek])
+
+  const weekKey = selectedWeek
+    ? `${apiBase}/week/${selectedWeek}${currentWeek != null && selectedWeek === currentWeek ? '?live=true' : ''}`
+    : null
+  const { data: weekData, isLoading: loading } = useSWR(weekKey)
 
   const teamData = weekData?.teams?.find((t: any) => t.name === teamName)
 

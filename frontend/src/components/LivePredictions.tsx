@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState } from 'react'
+import useSWR from 'swr'
 // Removed bar chart imports - no longer using charts
 
 interface Prediction {
@@ -29,75 +29,27 @@ interface Matchup {
 }
 
 export default function LivePredictions({ apiBase }: LivePredictionsProps) {
-  const [matchups, setMatchups] = useState<Matchup[]>([])
   const [selectedMatchupIndex, setSelectedMatchupIndex] = useState<number | null>(null)
-  const [prediction, setPrediction] = useState<Prediction | null>(null)
-  const [loadingMatchups, setLoadingMatchups] = useState(false)
-  const [loadingPrediction, setLoadingPrediction] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  // Load matchup list on mount (lightweight - just team names)
-  useEffect(() => {
-    loadMatchupList()
-  }, [apiBase])
+  // Matchup list (SWR caches)
+  const { data: matchupsData, error: errorMatchups, isLoading: loadingMatchups, mutate: mutateMatchups } = useSWR<{ matchups: Matchup[] }>(
+    `${apiBase}/predictions/matchups`
+  )
+  const matchups = matchupsData?.matchups ?? []
 
-  const loadMatchupList = async () => {
-    try {
-      setLoadingMatchups(true)
-      setError(null)
-      const response = await axios.get(`${apiBase}/predictions/matchups`)
-      setMatchups(response.data.matchups || [])
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load matchups')
-      console.error('Error loading matchups:', err)
-    } finally {
-      setLoadingMatchups(false)
-    }
-  }
+  // Prediction for selected matchup (SWR caches; key includes team1/team2, no _t to allow cache reuse)
+  const selected = selectedMatchupIndex != null ? matchups[selectedMatchupIndex] : null
+  const predKey = selected
+    ? `${apiBase}/predictions?live=true&team1=${encodeURIComponent(selected.team1)}&team2=${encodeURIComponent(selected.team2)}`
+    : null
+  const { data: predData, error: errorPred, isLoading: loadingPrediction, mutate: mutatePred } = useSWR<{ predictions: Prediction[] }>(predKey)
 
-  // Load prediction data when matchup is selected
-  useEffect(() => {
-    if (selectedMatchupIndex !== null && matchups[selectedMatchupIndex]) {
-      loadPredictionForMatchup(matchups[selectedMatchupIndex])
-    } else {
-      setPrediction(null)
-    }
-  }, [selectedMatchupIndex, matchups])
+  const prediction: Prediction | null =
+    predData?.predictions?.length ? predData.predictions[0] : null
+  const error = errorMatchups ?? (predKey ? errorPred : null)
 
-  const loadPredictionForMatchup = async (matchup: Matchup) => {
-    try {
-      setLoadingPrediction(true)
-      setError(null)
-      // Fetch prediction for specific matchup
-      const response = await axios.get(`${apiBase}/predictions`, {
-        params: { 
-          live: 'true', 
-          team1: matchup.team1,
-          team2: matchup.team2,
-          _t: Date.now() 
-        }
-      })
-      const predictions = response.data.predictions || []
-      if (predictions.length > 0) {
-        setPrediction(predictions[0]) // Should only be one match
-      } else {
-        setPrediction(null)
-        setError('No prediction data available for this matchup')
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load prediction')
-      console.error('Error fetching prediction:', err)
-      setPrediction(null)
-    } finally {
-      setLoadingPrediction(false)
-    }
-  }
-
-  // Refresh current prediction
   const handleRefresh = () => {
-    if (selectedMatchupIndex !== null && matchups[selectedMatchupIndex]) {
-      loadPredictionForMatchup(matchups[selectedMatchupIndex])
-    }
+    if (predKey) mutatePred()
   }
 
   const formatCategoryValue = (category: string, value: number): string => {
@@ -121,9 +73,9 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
   if (error && !prediction) {
     return (
       <div className="bg-gray-800 p-6 rounded-lg">
-        <div className="text-red-400 mb-4">❌ {error}</div>
+        <div className="text-red-400 mb-4">❌ {typeof error === 'string' ? error : (error as Error)?.message ?? 'Failed to load'}</div>
         <button
-          onClick={loadMatchupList}
+          onClick={() => mutateMatchups()}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
         >
           Retry
@@ -183,6 +135,13 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
           <div className="bg-gray-700 p-6 rounded-lg text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto mb-2"></div>
             <p className="text-gray-400 text-sm">Loading prediction data...</p>
+          </div>
+        )}
+
+        {/* No prediction data for this matchup */}
+        {predKey && !loadingPrediction && !prediction && predData && (!predData.predictions || predData.predictions.length === 0) && (
+          <div className="bg-gray-700 p-6 rounded-lg text-center text-gray-400">
+            No prediction data available for this matchup
           </div>
         )}
 

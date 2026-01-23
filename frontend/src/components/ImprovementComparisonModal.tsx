@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import useSWR from 'swr'
 
 interface ImprovementComparisonModalProps {
   apiBase: string
@@ -16,21 +15,8 @@ interface ImprovedTeam {
 }
 
 export default function ImprovementComparisonModal({ apiBase, onClose }: ImprovementComparisonModalProps) {
-  const [improvedTeams, setImprovedTeams] = useState<ImprovedTeam[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    axios.get(`${apiBase}/league/stats`)
-      .then(res => {
-        const improved = res.data.weekly_performance?.improved_teams || []
-        setImprovedTeams(improved)
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error('Error loading improvement data:', err)
-        setLoading(false)
-      })
-  }, [apiBase])
+  const { data: stats, isLoading: loading } = useSWR<{ weekly_performance?: { improved_teams?: ImprovedTeam[] } }>(`${apiBase}/league/stats`)
+  const improvedTeams = stats?.weekly_performance?.improved_teams ?? []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import useSWR from 'swr'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
 
@@ -47,177 +48,87 @@ interface TeamName {
 }
 
 export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
-  const [weeks, setWeeks] = useState<number[]>([])
+  const { data: weeksData } = useSWR<{ weeks: number[] }>(`${apiBase}/weeks`)
+  const { data: summary } = useSWR<{ current_matchup_period: number; teams?: { name: string; team_id: number }[] }>(`${apiBase}/league/summary`)
+
+  const weeks = (weeksData?.weeks ?? []).sort((a: number, b: number) => a - b)
+  const currentWeek = summary?.current_matchup_period ?? null
+  const teamNames: TeamName[] = (summary?.teams ?? []).map((t) => ({ name: t.name, team_id: t.team_id }))
+
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<string>('')
-  const [teamNames, setTeamNames] = useState<TeamName[]>([]) // Team names for dropdown
-  const [weekData, setWeekData] = useState<WeekData | null>(null)
   const [allWeeksData, setAllWeeksData] = useState<Record<number, WeekData>>({})
   const [loading, setLoading] = useState(false)
-  const [loadingWeek, setLoadingWeek] = useState<number | null>(null)
   const [graphData, setGraphData] = useState<Array<{ week: number; teamsBeaten: number }>>([])
   const [opponentMinutes, setOpponentMinutes] = useState<Record<string, { minutes: number; vsAvg: number; week: number }>>({})
-  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
-  const [rosterTotals, setRosterTotals] = useState<{ teams: RosterTotalsTeam[]; season?: number } | null>(null)
   const [compareTeam, setCompareTeam] = useState<string>('')
-  const [loadingRosterTotals, setLoadingRosterTotals] = useState(false)
 
-  // Load weeks list and set default to latest (no data fetch)
+  // Set default selectedWeek when weeks load
   useEffect(() => {
-    axios.get(`${apiBase}/weeks`)
-      .then(res => {
-        const availableWeeks = res.data.weeks.sort((a: number, b: number) => a - b)
-        setWeeks(availableWeeks)
-        if (availableWeeks.length > 0) {
-          setSelectedWeek(Math.max(...availableWeeks))
-        }
-      })
-      .catch(err => console.error('Error loading weeks:', err))
-  }, [apiBase])
-
-  // Load team names from league summary (no data fetch)
-  useEffect(() => {
-    axios.get(`${apiBase}/league/summary`)
-      .then(res => {
-        setCurrentWeek(res.data.current_matchup_period)
-        // Extract team names for dropdown
-        if (res.data.teams && Array.isArray(res.data.teams)) {
-          const names = res.data.teams.map((team: any) => ({
-            name: team.name,
-            team_id: team.team_id
-          }))
-          setTeamNames(names)
-        }
-      })
-      .catch(err => console.error('Error loading league summary:', err))
-  }, [apiBase])
-
-  // Fetch roster totals when a team is selected (used for Team Roster Totals and compare)
-  useEffect(() => {
-    if (!selectedTeam) {
-      setRosterTotals(null)
-      return
+    if (weeks.length > 0 && selectedWeek == null) {
+      setSelectedWeek(Math.max(...weeks))
     }
-    setLoadingRosterTotals(true)
-    axios.get(`${apiBase}/league/roster-totals`)
-      .then(res => {
-        setRosterTotals(res.data)
-        setLoadingRosterTotals(false)
-      })
-      .catch(err => {
-        console.error('Error loading roster totals:', err)
-        setRosterTotals(null)
-        setLoadingRosterTotals(false)
-      })
-  }, [selectedTeam, apiBase])
+  }, [weeks, selectedWeek])
 
-  // Load data when team is selected
+  // Roster totals (SWR caches; only fetch when a team is selected)
+  const { data: rosterTotals, isLoading: loadingRosterTotals } = useSWR<{ teams: RosterTotalsTeam[]; season?: number }>(
+    selectedTeam ? `${apiBase}/league/roster-totals` : null
+  )
+
+  // Selected week data (SWR caches; live=true only for current week)
+  const weekKey = selectedTeam && selectedWeek
+    ? `${apiBase}/week/${selectedWeek}${selectedWeek === currentWeek ? '?live=true' : ''}`
+    : null
+  const { data: weekData, mutate: mutateWeek, isLoading: loadingWeek } = useSWR<WeekData>(weekKey)
+
+  // Merge SWR week into allWeeksData when it’s available
   useEffect(() => {
-    if (!selectedTeam || !selectedWeek) {
-      // Clear data if no team selected
-      setWeekData(null)
+    if (weekData && selectedWeek != null) {
+      setAllWeeksData((prev) => ({ ...prev, [selectedWeek]: weekData }))
+    }
+  }, [weekData, selectedWeek])
+
+  // Load historical weeks when team/week selected (HTTP cache helps repeat visits)
+  useEffect(() => {
+    if (!selectedTeam || !selectedWeek || weeks.length === 0) {
       setAllWeeksData({})
-      setGraphData([])
-      setOpponentMinutes({})
       return
     }
 
-    const loadTeamData = async () => {
+    let cancelled = false
+    const historicalWeeks = weeks.filter((w) => w !== selectedWeek)
+
+    const load = async () => {
+      setLoading(true)
       try {
-        setLoading(true)
-        setLoadingWeek(selectedWeek)
-        setWeekData(null)
-
-        // Determine if we need live data
-        const params: any = {}
-        if (selectedWeek === currentWeek) {
-          params.live = 'true'
-          params._t = Date.now()
-        }
-
-        // 1. Load selected team's data for selected week
-        // 2. Load all teams' data for selected week (for comparison/leaderboard)
-        const weekRes = await axios.get(`${apiBase}/week/${selectedWeek}`, { params })
-        const weekDataForSelectedWeek: WeekData = weekRes.data
-
-        // Find selected team in the week data
-        const selectedTeamData = weekDataForSelectedWeek.teams.find(t => t.name === selectedTeam)
-        if (!selectedTeamData) {
-          console.error(`Team ${selectedTeam} not found in week ${selectedWeek}`)
-          setLoading(false)
-          setLoadingWeek(null)
-          return
-        }
-
-        // Store week data (contains all teams for comparison)
-        setAllWeeksData(prev => ({
-          ...prev,
-          [selectedWeek]: weekDataForSelectedWeek
-        }))
-        setWeekData(weekDataForSelectedWeek)
-
-        // 3. Load selected team's historical data (all weeks)
-        const historicalPromises = weeks
-          .filter(week => week !== selectedWeek) // Don't reload current week
-          .map(async (week) => {
+        const results = await Promise.all(
+          historicalWeeks.map(async (week) => {
             try {
               const res = await axios.get(`${apiBase}/week/${week}`)
-              return { week, data: res.data }
+              return { week, data: res.data as WeekData }
             } catch (err) {
               console.error(`Error loading historical week ${week}:`, err)
               return null
             }
           })
-
-        const historicalResults = await Promise.all(historicalPromises)
-        const historicalData: Record<number, WeekData> = {}
-
-        for (const result of historicalResults) {
-          if (result) {
-            historicalData[result.week] = result.data
-          }
+        )
+        if (cancelled) return
+        const merged: Record<number, WeekData> = {}
+        for (const r of results) {
+          if (r) merged[r.week] = r.data
         }
-
-        // Merge historical data
-        setAllWeeksData(prev => ({
-          ...prev,
-          ...historicalData
-        }))
-
-        setLoading(false)
-        setLoadingWeek(null)
-      } catch (err) {
-        console.error(`Error loading data for team ${selectedTeam}, week ${selectedWeek}:`, err)
-        setLoading(false)
-        setLoadingWeek(null)
+        setAllWeeksData((prev) => ({ ...prev, ...merged }))
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
+    load()
+    return () => { cancelled = true }
+  }, [selectedTeam, selectedWeek, apiBase, weeks])
 
-    loadTeamData()
-  }, [selectedTeam, selectedWeek, apiBase, currentWeek, weeks])
-
-  // Refresh current week data
-  const refreshCurrentWeek = async () => {
-    if (currentWeek && selectedWeek === currentWeek && selectedTeam) {
-      try {
-        setLoading(true)
-        setLoadingWeek(currentWeek)
-        setWeekData(null)
-        const res = await axios.get(`${apiBase}/week/${currentWeek}`, {
-          params: { live: 'true', _t: Date.now() }
-        })
-        setAllWeeksData(prev => ({
-          ...prev,
-          [currentWeek]: res.data
-        }))
-        setWeekData(res.data)
-        setLoading(false)
-        setLoadingWeek(null)
-      } catch (err) {
-        console.error(`Error refreshing current week:`, err)
-        setLoading(false)
-        setLoadingWeek(null)
-      }
+  const refreshCurrentWeek = () => {
+    if (currentWeek != null && selectedWeek === currentWeek && selectedTeam) {
+      mutateWeek()
     }
   }
 
@@ -374,7 +285,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       )}
 
       {/* Loading State */}
-      {loading && selectedTeam && (
+      {(loading || loadingWeek) && selectedTeam && (
         <div className="bg-gray-800 p-8 md:p-12 rounded-lg flex flex-col items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
           <p className="text-lg md:text-xl font-semibold text-gray-300">Loading data for {selectedTeam}...</p>
@@ -383,7 +294,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
       )}
 
       {/* Content - only show if team selected and data loaded */}
-      {selectedTeam && !loading && weekData && selectedTeamData && (
+      {selectedTeam && !loading && !loadingWeek && weekData && selectedTeamData && (
         <>
           {/* Bar Graph */}
           {graphData.length > 0 && (

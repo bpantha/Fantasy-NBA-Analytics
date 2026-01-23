@@ -1,16 +1,28 @@
 'use client'
 
 import { useState } from 'react'
+import { SWRConfig } from 'swr'
+import axios from 'axios'
 import LeagueOverview from '../components/LeagueOverview'
 import TeamVsLeague from '../components/TeamVsLeague'
 import LivePredictions from '../components/LivePredictions'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
+const apiFetcher = (url: string) => axios.get(url).then((r) => r.data)
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'overview' | 'team' | 'predictions'>('overview')
 
   return (
+    <SWRConfig
+      value={{
+        fetcher: apiFetcher,
+        dedupingInterval: 60_000,
+        revalidateOnFocus: true,
+        revalidateIfStale: true,
+      }}
+    >
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 p-2 md:p-4">
@@ -68,5 +80,6 @@ export default function Home() {
       </main>
 
     </div>
+    </SWRConfig>
   )
 }

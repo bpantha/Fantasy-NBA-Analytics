@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState } from 'react'
+import useSWR from 'swr'
 import TeamModal from './TeamModal'
 import WeekModal from './WeekModal'
 import CategoryComparisonModal from './CategoryComparisonModal'
@@ -104,11 +104,6 @@ interface CurrentWeekData {
 }
 
 export default function LeagueOverview({ apiBase }: { apiBase: string }) {
-  const [stats, setStats] = useState<LeagueStats | null>(null)
-  const [currentWeekData, setCurrentWeekData] = useState<CurrentWeekData | null>(null)
-  const [currentWeek, setCurrentWeek] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [loadingCurrentWeek, setLoadingCurrentWeek] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -116,42 +111,15 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [sortField, setSortField] = useState<'avg_teams_beaten' | 'total_wins' | 'win_percentage'>('avg_teams_beaten')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  // Load league stats
-  useEffect(() => {
-    axios.get(`${apiBase}/league/stats`)
-      .then(res => {
-        setStats(res.data)
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error('Error loading league stats:', err)
-        setLoading(false)
-      })
-  }, [apiBase])
+  // Load league stats (SWR caches and dedupes)
+  const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats`)
+  const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
+  const currentWeek = summary?.current_matchup_period ?? null
+  const weekKey = currentWeek ? `${apiBase}/week/${currentWeek}?live=true` : null
+  const { data: currentWeekData, error: errorCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
 
-  // Get current week and load current week data
-  useEffect(() => {
-    axios.get(`${apiBase}/league/summary`)
-      .then(res => {
-        const week = res.data.current_matchup_period
-        setCurrentWeek(week)
-        
-        // Load current week data with live=true
-        setLoadingCurrentWeek(true)
-        axios.get(`${apiBase}/week/${week}`, { params: { live: 'true' } })
-          .then(weekRes => {
-            setCurrentWeekData(weekRes.data)
-            setLoadingCurrentWeek(false)
-          })
-          .catch(err => {
-            console.error('Error loading current week data:', err)
-            setLoadingCurrentWeek(false)
-          })
-      })
-      .catch(err => {
-        console.error('Error loading current week:', err)
-      })
-  }, [apiBase])
+  const loading = loadingStats
+  const loadingCurrentWeek = !!currentWeek && !currentWeekData && !errorCurrentWeek
 
   // Show loading state while fetching initial data or current week data
   if (loading || loadingCurrentWeek) {
@@ -169,6 +137,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     return (
       <div className="text-center py-20 text-red-400">
         Error loading league statistics. Please try again later.
+      </div>
+    )
+  }
+
+  if (errorCurrentWeek && currentWeek) {
+    return (
+      <div className="text-center py-20 text-red-400">
+        Error loading current week data. Please try again later.
       </div>
     )
   }

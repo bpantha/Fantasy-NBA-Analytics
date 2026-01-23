@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import useSWR from 'swr'
 
 interface CategoryComparisonModalProps {
   category: string
@@ -10,20 +9,7 @@ interface CategoryComparisonModalProps {
 }
 
 export default function CategoryComparisonModal({ category, apiBase, onClose }: CategoryComparisonModalProps) {
-  const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    axios.get(`${apiBase}/league/stats`)
-      .then(res => {
-        setStats(res.data)
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error('Error loading stats:', err)
-        setLoading(false)
-      })
-  }, [apiBase])
+  const { data: stats, isLoading: loading } = useSWR<any>(`${apiBase}/league/stats`)
 
   if (loading) {
     return (
