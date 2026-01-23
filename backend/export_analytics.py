@@ -128,8 +128,10 @@ def export_week_analytics(league, matchup_period):
                 if categories_won >= 5:
                     teams_beaten[team1].add(team2)
         
-        # Calculate minutes played
+        # Calculate minutes played and player counts
         team_minutes = defaultdict(float)
+        team_player_counts = defaultdict(int)  # Total players on roster
+        team_games_played = defaultdict(int)  # Count of players who have played (MIN > 0)
         matchup_minutes = {}
         
         for box_score in box_scores:
@@ -144,25 +146,53 @@ def export_week_analytics(league, matchup_period):
             if hasattr(box_score, 'home_lineup') and hasattr(box_score, 'away_lineup'):
                 home_minutes = 0
                 away_minutes = 0
+                home_players = 0
+                away_players = 0
+                home_games = 0
+                away_games = 0
                 
                 for player in box_score.home_lineup:
+                    home_players += 1
                     if hasattr(player, 'points_breakdown') and player.points_breakdown:
                         min_value = player.points_breakdown.get('MIN', 0)
                         if isinstance(min_value, (int, float)) and min_value > 0:
                             home_minutes += min_value
+                            home_games += 1  # Player has played if they have minutes
                 
                 for player in box_score.away_lineup:
+                    away_players += 1
                     if hasattr(player, 'points_breakdown') and player.points_breakdown:
                         min_value = player.points_breakdown.get('MIN', 0)
                         if isinstance(min_value, (int, float)) and min_value > 0:
                             away_minutes += min_value
+                            away_games += 1  # Player has played if they have minutes
                 
                 team_minutes[home_team] += home_minutes
                 team_minutes[away_team] += away_minutes
+                team_player_counts[home_team] += home_players
+                team_player_counts[away_team] += away_players
+                team_games_played[home_team] += home_games
+                team_games_played[away_team] += away_games
                 matchup_minutes[(home_team, away_team)] = home_minutes
                 matchup_minutes[(away_team, home_team)] = away_minutes
         
         league_avg_minutes = sum(team_minutes.values()) / len(team_minutes) if team_minutes else 0
+        
+        # Calculate average minutes per player for each team and league average
+        team_avg_minutes_per_player = {}
+        for team in team_minutes:
+            player_count = team_player_counts.get(team, 1)  # Avoid division by zero
+            team_avg_minutes_per_player[team] = team_minutes[team] / player_count if player_count > 0 else 0
+        
+        league_avg_minutes_per_player = sum(team_avg_minutes_per_player.values()) / len(team_avg_minutes_per_player) if team_avg_minutes_per_player else 0
+        
+        # Calculate average games per player for each team and league average
+        team_avg_games_per_player = {}
+        for team in team_games_played:
+            player_count = team_player_counts.get(team, 1)  # Avoid division by zero
+            team_avg_games_per_player[team] = team_games_played[team] / player_count if player_count > 0 else 0
+        
+        league_avg_games_per_player = sum(team_avg_games_per_player.values()) / len(team_avg_games_per_player) if team_avg_games_per_player else 0
         
         # Build team data structure
         teams_data = []
@@ -238,6 +268,12 @@ def export_week_analytics(league, matchup_period):
             # If logo_url is empty, leave it empty (frontend will handle with placeholder)
             # Note: Custom logos are user-uploaded and not available via API
             
+            # Calculate player metrics
+            player_count = team_player_counts.get(team, 0)
+            avg_minutes_per_player = team_avg_minutes_per_player.get(team, 0)
+            total_games_played = team_games_played.get(team, 0)
+            avg_games_per_player = team_avg_games_per_player.get(team, 0)
+            
             teams_data.append({
                 'name': team_name,
                 'team_id': team.team_id,
@@ -249,6 +285,11 @@ def export_week_analytics(league, matchup_period):
                 'opponent_name': opponent_name,
                 'minutes_vs_league_avg': minutes - league_avg_minutes,
                 'league_avg_minutes': league_avg_minutes,
+                'avg_minutes_per_player': avg_minutes_per_player,
+                'league_avg_minutes_per_player': league_avg_minutes_per_player,
+                'total_games_played': total_games_played,
+                'avg_games_per_player': avg_games_per_player,
+                'league_avg_games_per_player': league_avg_games_per_player,
                 'category_totals': category_totals,  # Add category totals
                 'beaten_teams': [get_team_display_name(t) for t in stats['beaten_teams']],
                 'matchup_details': stats['matchup_details']
