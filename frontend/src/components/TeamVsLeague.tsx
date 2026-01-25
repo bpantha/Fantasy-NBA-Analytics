@@ -471,6 +471,41 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
               )}
             </div>
 
+            {/* Week X Category Totals (in-week stats for selected team) */}
+            {selectedTeamData.category_totals && Object.keys(selectedTeamData.category_totals).length > 0 && (
+              <div className="bg-gray-800 p-4 md:p-6 rounded-lg">
+                <h3 className="text-lg md:text-xl font-bold mb-4">
+                  📈 Week {selectedWeek} Category Totals — {selectedTeam}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-400 mb-3">
+                  Actual stats your team put up in Week {selectedWeek} (from games played in the matchup period).
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm md:text-base">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-2 md:px-4 py-2 md:py-3 text-left">Category</th>
+                        <th className="px-2 md:px-4 py-2 md:py-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.map(cat => {
+                        const v = selectedTeamData.category_totals?.[cat] ?? 0
+                        const showPct = cat === 'FG%' || cat === 'FT%'
+                        const fmt = showPct ? `${(v * 100).toFixed(1)}%` : cat === 'TO' ? Number(v).toFixed(0) : Number(v).toFixed(1)
+                        return (
+                          <tr key={cat} className="border-t border-gray-700">
+                            <td className="px-2 md:px-4 py-2 md:py-3 font-medium">{cat}</td>
+                            <td className="px-2 md:px-4 py-2 md:py-3 text-right">{fmt}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Opponent Matchup */}
             {selectedTeamData.opponent_name && (
               <div
