@@ -37,7 +37,7 @@ def add_cache_control(response):
     elif request.path in ('/api/weeks', '/api/league/summary') or request.path.startswith('/api/players') or request.path.startswith('/api/teams') or request.path.startswith('/api/compare/'):
         response.headers['Cache-Control'] = 'public, max-age=300'
     elif request.path.startswith('/api/week/'):
-        response.headers['Cache-Control'] = 'private, max-age=60' if live else 'public, max-age=300'
+        response.headers['Cache-Control'] = 'no-store' if live else 'public, max-age=300'
     elif request.path in ('/api/league/roster-totals', '/api/league/upcoming-matchups'):
         response.headers['Cache-Control'] = 'private, max-age=300'
     elif request.path == '/api/league/stats':
@@ -119,6 +119,10 @@ def get_week_data(week):
         league = get_league_instance()
         if league and week == league.currentMatchupPeriod:
             try:
+                league.fetch_league()  # Refresh from ESPN so current-week stats are up to date
+            except Exception as e:
+                print(f"fetch_league before export failed: {e}")
+            try:
                 import importlib.util
                 export_path = Path(__file__).parent / 'export_analytics.py'
                 spec = importlib.util.spec_from_file_location("export_analytics", export_path)
@@ -155,13 +159,19 @@ def get_week_data(week):
 
 @app.route('/api/league/summary', methods=['GET'])
 def get_league_summary():
-    """Get league summary data"""
+    """Get league summary data. current_matchup_period is live from ESPN when API is available."""
     file_path = DATA_DIR / 'league_summary.json'
     if not file_path.exists():
         return jsonify({'error': 'League summary not found'}), 404
     
     with open(file_path, 'r') as f:
         data = json.load(f)
+    try:
+        league = get_league_instance(use_cache=True)
+        if league:
+            data['current_matchup_period'] = league.currentMatchupPeriod
+    except Exception:
+        pass
     return jsonify(data)
 
 STANDARD_CATS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
