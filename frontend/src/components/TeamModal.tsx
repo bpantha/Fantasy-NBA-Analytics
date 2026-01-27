@@ -10,19 +10,20 @@ interface TeamModalProps {
 }
 
 export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps) {
-  const { data: weeksData } = useSWR<{ weeks: number[] }>(`${apiBase}/weeks`)
+  const { data: weeksData } = useSWR<{ weeks: number[]; current_week?: number }>(`${apiBase}/weeks`)
   const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
 
   const weeks = (weeksData?.weeks ?? []).sort((a: number, b: number) => b - a)
-  const currentWeek = summary?.current_matchup_period ?? null
+  const currentWeek = weeksData?.current_week ?? summary?.current_matchup_period ?? null
 
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
 
   useEffect(() => {
     if (weeks.length > 0 && selectedWeek == null) {
-      setSelectedWeek(weeks[0])
+      const defaultWeek = currentWeek != null && weeks.includes(currentWeek) ? currentWeek : weeks[0]
+      setSelectedWeek(defaultWeek)
     }
-  }, [weeks, selectedWeek])
+  }, [weeks, currentWeek, selectedWeek])
 
   const weekKey = selectedWeek
     ? (currentWeek != null && selectedWeek === currentWeek ? `${apiBase}/week/current` : `${apiBase}/week/${selectedWeek}`)

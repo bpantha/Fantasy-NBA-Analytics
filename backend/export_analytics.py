@@ -125,6 +125,53 @@ def export_week_analytics(league, matchup_period):
                     team_category_totals[home_team][category] = home_value
                     team_category_totals[away_team][category] = away_value
         
+        # Current week sometimes returns all zeros (ESPN not updated yet). Fallback: use last scoring period in matchup.
+        if matchup_period == league.currentMatchupPeriod and box_scores:
+            def _all_zeros():
+                for totals in team_category_totals.values():
+                    for c in standard_cats:
+                        if totals.get(c, 0) != 0:
+                            return False
+                return True
+            ids = league.matchup_ids.get(matchup_period, [])
+            if _all_zeros() and ids:
+                try:
+                    last_sp = int(ids[-1]) if isinstance(ids[-1], str) else ids[-1]
+                except (TypeError, ValueError):
+                    last_sp = None
+                if last_sp is not None and last_sp != league.current_week:
+                    fallback = league.box_scores(matchup_period=matchup_period, scoring_period=last_sp, matchup_total=True)
+                    if fallback:
+                        team_category_totals = defaultdict(lambda: defaultdict(float))
+                        all_teams = set()
+                        for bs in fallback:
+                            ht = bs.home_team if not isinstance(bs.home_team, int) else league.get_team_data(bs.home_team)
+                            at = bs.away_team if not isinstance(bs.away_team, int) else league.get_team_data(bs.away_team)
+                            all_teams.add(ht)
+                            all_teams.add(at)
+                            if hasattr(bs, 'home_stats') and hasattr(bs, 'away_stats'):
+                                for cat in list(bs.home_stats.keys()):
+                                    if cat not in standard_cats:
+                                        continue
+                                    team_category_totals[ht][cat] = bs.home_stats[cat].get('value', 0)
+                                    team_category_totals[at][cat] = bs.away_stats[cat].get('value', 0)
+                        if any(team_category_totals[t].get(c, 0) != 0 for t in all_teams for c in standard_cats):
+                            box_scores = fallback
+                        else:
+                            team_category_totals = defaultdict(lambda: defaultdict(float))
+                            all_teams = set()
+                            for bs in box_scores:
+                                ht = bs.home_team if not isinstance(bs.home_team, int) else league.get_team_data(bs.home_team)
+                                at = bs.away_team if not isinstance(bs.away_team, int) else league.get_team_data(bs.away_team)
+                                all_teams.add(ht)
+                                all_teams.add(at)
+                                if hasattr(bs, 'home_stats') and hasattr(bs, 'away_stats'):
+                                    for cat in list(bs.home_stats.keys()):
+                                        if cat not in standard_cats:
+                                            continue
+                                        team_category_totals[ht][cat] = bs.home_stats[cat].get('value', 0)
+                                        team_category_totals[at][cat] = bs.away_stats[cat].get('value', 0)
+        
         # Compare teams and build analytics
         team_category_wins = defaultdict(lambda: defaultdict(set))
         team_category_losses = defaultdict(lambda: defaultdict(set))

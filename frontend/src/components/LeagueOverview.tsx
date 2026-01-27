@@ -127,13 +127,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [categoryDominatorModal, setCategoryDominatorModal] = useState<string | null>(null)
   const [metricRankModal, setMetricRankModal] = useState<{ title: string; valueKey: string; valueLabel: string; formatValue?: (v: unknown) => string; sortAscending?: boolean } | null>(null)
   const [showClutchModal, setShowClutchModal] = useState(false)
+  const [liveRefreshKey, setLiveRefreshKey] = useState(0)
 
   // Load league stats (SWR caches and dedupes)
   const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats`)
   const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
   const currentWeek = summary?.current_matchup_period ?? null
-  const weekKey = currentWeek ? `${apiBase}/week/current` : null
-  const { data: currentWeekData, error: errorCurrentWeek, mutate: mutateCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
+  const weekKey = currentWeek ? `${apiBase}/week/current?t=${liveRefreshKey}` : null
+  const { data: currentWeekData, error: errorCurrentWeek, isValidating: isValidatingCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
 
   const loading = loadingStats
   const loadingCurrentWeek = !!currentWeek && !currentWeekData && !errorCurrentWeek
@@ -163,7 +164,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
       <div className="text-center py-20">
         <p className="text-red-400 mb-4">Error loading current week data. Please try again.</p>
         <button
-          onClick={() => mutateCurrentWeek()}
+          onClick={() => setLiveRefreshKey((k) => k + 1)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors"
         >
           🔄 Retry
@@ -299,11 +300,12 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h2 className="text-xl md:text-2xl font-bold">🏆 Week {currentWeek} Category Dominators</h2>
           <button
-            onClick={() => mutateCurrentWeek()}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors"
+            onClick={() => setLiveRefreshKey((k) => k + 1)}
+            disabled={isValidatingCurrentWeek}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh live data from ESPN"
           >
-            🔄 Refresh live
+            {isValidatingCurrentWeek ? '… Refreshing' : '🔄 Refresh live'}
           </button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">

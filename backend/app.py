@@ -100,7 +100,7 @@ def health():
 
 @app.route('/api/weeks', methods=['GET'])
 def get_available_weeks():
-    """Get list of available matchup periods"""
+    """Get list of available matchup periods. Includes current_week from live League when available."""
     weeks = []
     for file in DATA_DIR.glob('week*.json'):
         week_num = file.stem.replace('week', '')
@@ -109,7 +109,22 @@ def get_available_weeks():
             weeks.append(week_num)
         except:
             continue
-    return jsonify({'weeks': sorted(weeks)})
+    weeks = sorted(set(weeks))
+    current_week = None
+    try:
+        league = get_league_instance(use_cache=True)
+        if league:
+            current_week = league.currentMatchupPeriod
+    except Exception:
+        pass
+    if current_week is None:
+        summary_path = DATA_DIR / 'league_summary.json'
+        if summary_path.exists():
+            with open(summary_path, 'r') as f:
+                current_week = json.load(f).get('current_matchup_period')
+    if current_week is not None and current_week not in weeks:
+        weeks = sorted(set(weeks) | {current_week})
+    return jsonify({'weeks': weeks, 'current_week': current_week})
 
 
 @app.route('/api/week/current', methods=['GET'])
@@ -886,16 +901,13 @@ def get_league_stats():
 
 @app.route('/api/predictions/matchups', methods=['GET'])
 def get_matchup_list():
-    """Get list of current week matchups (team names only, no prediction data)"""
+    """Get list of current week matchups (team names only, no prediction data). Uses live League."""
     try:
-        league = get_league_instance()
+        league = get_league_instance(use_cache=False)
         if not league:
             return jsonify({'error': 'League API unavailable'}), 503
-        
-        current_week = get_current_week(fetch_live=False)  # Don't fetch live, use cached
-        
-        # Get box scores to find matchups
         league.fetch_league()
+        current_week = league.currentMatchupPeriod
         current_scoring_period = league.current_week
         box_scores = league.box_scores(matchup_period=current_week, scoring_period=current_scoring_period, matchup_total=True)
         
@@ -942,15 +954,11 @@ def get_predictions():
         return jsonify({'error': 'Live predictions require live=true parameter'}), 400
     
     try:
-        league = get_league_instance()
+        league = get_league_instance(use_cache=False)
         if not league:
             return jsonify({'error': 'League API unavailable'}), 503
-        
-        current_week = get_current_week(fetch_live=True)
-        
-        # For current week, ensure we get the absolute latest data (same logic as export_week_analytics)
-        # Refresh league to get latest scoring period
         league.fetch_league()
+        current_week = league.currentMatchupPeriod
         # Explicitly use current_week as scoring_period to ensure we get the latest data
         # matchup_total=True ensures we get cumulative stats for the entire matchup
         current_scoring_period = league.current_week

@@ -50,11 +50,11 @@ interface TeamName {
 }
 
 export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
-  const { data: weeksData } = useSWR<{ weeks: number[] }>(`${apiBase}/weeks`)
+  const { data: weeksData } = useSWR<{ weeks: number[]; current_week?: number }>(`${apiBase}/weeks`)
   const { data: summary } = useSWR<{ current_matchup_period: number; teams?: { name: string; team_id: number }[] }>(`${apiBase}/league/summary`)
 
   const weeks = (weeksData?.weeks ?? []).sort((a: number, b: number) => a - b)
-  const currentWeek = summary?.current_matchup_period ?? null
+  const currentWeek = weeksData?.current_week ?? summary?.current_matchup_period ?? null
   const teamNames: TeamName[] = (summary?.teams ?? []).map((t) => ({ name: t.name, team_id: t.team_id }))
 
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
@@ -68,12 +68,12 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
   const [weekForModal, setWeekForModal] = useState<number | null>(null)
   const [showOpponentModal, setShowOpponentModal] = useState(false)
 
-  // Set default selectedWeek when weeks load
+  // Default selectedWeek to current week when available, else latest in list
   useEffect(() => {
     if (weeks.length > 0 && selectedWeek == null) {
-      setSelectedWeek(Math.max(...weeks))
+      setSelectedWeek(currentWeek != null && weeks.includes(currentWeek) ? currentWeek : Math.max(...weeks))
     }
-  }, [weeks, selectedWeek])
+  }, [weeks, currentWeek, selectedWeek])
 
   // Roster totals (SWR caches; only fetch when a team is selected)
   const { data: rosterTotals, isLoading: loadingRosterTotals } = useSWR<{ teams: RosterTotalsTeam[]; season?: number }>(

@@ -75,7 +75,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
       <div className="bg-gray-800 p-6 rounded-lg">
         <div className="text-red-400 mb-4">❌ {typeof error === 'string' ? error : (error as Error)?.message ?? 'Failed to load'}</div>
         <button
-          onClick={() => mutateMatchups()}
+          onClick={() => { mutateMatchups(); if (predKey) mutatePred(); }}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
         >
           Retry
