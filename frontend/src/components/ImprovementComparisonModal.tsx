@@ -15,7 +15,7 @@ interface ImprovedTeam {
 }
 
 export default function ImprovementComparisonModal({ apiBase, onClose }: ImprovementComparisonModalProps) {
-  const { data: stats, isLoading: loading } = useSWR<{ weekly_performance?: { improved_teams?: ImprovedTeam[] } }>(`${apiBase}/league/stats`)
+  const { data: stats, isLoading: loading } = useSWR<{ weekly_performance?: { improved_teams?: ImprovedTeam[] } }>(`${apiBase}/league/stats?live=true`)
   const improvedTeams = stats?.weekly_performance?.improved_teams ?? []
 
   return (

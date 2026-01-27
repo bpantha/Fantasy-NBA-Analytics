@@ -43,7 +43,7 @@ def add_cache_control(response):
     elif request.path in ('/api/league/roster-totals', '/api/league/upcoming-matchups'):
         response.headers['Cache-Control'] = 'private, max-age=300'
     elif request.path == '/api/league/stats':
-        response.headers['Cache-Control'] = 'private, max-age=60' if live else 'public, max-age=300'
+        response.headers['Cache-Control'] = 'private, max-age=60'
     elif request.path in ('/api/predictions', '/api/predictions/matchups'):
         response.headers['Cache-Control'] = 'private, max-age=60'
     return response
@@ -440,69 +440,70 @@ def compare_teams(team1, team2):
 
 @app.route('/api/league/stats', methods=['GET'])
 def get_league_stats():
-    """Get aggregated league statistics across all weeks - only uses live data if live=true parameter provided"""
+    """Get aggregated league statistics. Always fetches live current week when ESPN API available (no 12am wait)."""
     from collections import defaultdict
-    
-    # Check if live data is explicitly requested
-    fetch_live = request.args.get('live', 'false').lower() == 'true'
-    current_week = get_current_week(fetch_live=fetch_live)
-    
-    # Load all week data files (historical weeks)
+
+    # Prefer live League for current week; fall back to 12am file only when API unavailable
+    league = get_league_instance(use_cache=True)
+    if league:
+        try:
+            league.fetch_league()
+        except Exception:
+            pass
+        current_week = league.currentMatchupPeriod
+    else:
+        current_week = get_current_week(fetch_live=False)
+
+    # Load historical weeks from files only (12am export). Never use file for current week.
     all_weeks_data = []
     weeks = []
     for file in sorted(DATA_DIR.glob('week*.json')):
         week_num = file.stem.replace('week', '')
         try:
             week_num = int(week_num)
-            # Skip current week - we'll fetch it live
             if week_num == current_week:
                 continue
             weeks.append(week_num)
             with open(file, 'r') as f:
                 all_weeks_data.append(json.load(f))
-        except:
+        except Exception:
             continue
-    
-    # Only fetch live data for current week if explicitly requested
-    if fetch_live:
+
+    # Always fetch live current week when League available; do not wait on 12am job
+    if league:
         try:
-            # Import here to avoid circular imports
             import importlib.util
             export_path = Path(__file__).parent / 'export_analytics.py'
             spec = importlib.util.spec_from_file_location("export_analytics", export_path)
             export_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(export_module)
-            
-            league = get_league_instance()
-            if league:
-                live_current_week = export_module.export_week_analytics(league, current_week)
-                if live_current_week:
-                    all_weeks_data.append(live_current_week)
-                    weeks.append(current_week)
+            live_current_week = export_module.export_week_analytics(league, current_week)
+            if live_current_week:
+                all_weeks_data.append(live_current_week)
+                weeks.append(current_week)
         except Exception as e:
-            print(f"Error fetching live current week data: {e}")
+            print(f"Error fetching live current week for league/stats: {e}")
             import traceback
             traceback.print_exc()
-    
-    # If current week is missing: when fetch_live we do not use the 12am file (override).
-    # When not fetch_live, use file if it exists.
-    if current_week not in weeks and not fetch_live:
-        current_week_file = DATA_DIR / f'week{current_week}.json'
-        if current_week_file.exists():
-            with open(current_week_file, 'r') as f:
-                all_weeks_data.append(json.load(f))
-                weeks.append(current_week)
+    elif (DATA_DIR / f'week{current_week}.json').exists():
+        # No League API: fall back to 12am file for current week if present (rare)
+        with open(DATA_DIR / f'week{current_week}.json', 'r') as f:
+            all_weeks_data.append(json.load(f))
+            weeks.append(current_week)
     
     if not all_weeks_data:
         return jsonify({'error': 'No week data available'}), 404
     
-    # Load league summary for overall wins
+    # Load league summary for overall wins (team names, etc.)
     summary_path = DATA_DIR / 'league_summary.json'
     league_summary = {}
     if summary_path.exists():
         with open(summary_path, 'r') as f:
             league_summary = json.load(f)
-    
+    # Keep current_week from League/file; override summary's stale value when we have live
+    if league:
+        league_summary['current_matchup_period'] = current_week
+
     # Aggregate data
     team_stats = defaultdict(lambda: {
         'total_teams_beaten': 0,

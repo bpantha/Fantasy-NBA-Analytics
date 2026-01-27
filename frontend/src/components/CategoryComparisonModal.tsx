@@ -9,7 +9,7 @@ interface CategoryComparisonModalProps {
 }
 
 export default function CategoryComparisonModal({ category, apiBase, onClose }: CategoryComparisonModalProps) {
-  const { data: stats, isLoading: loading } = useSWR<any>(`${apiBase}/league/stats`)
+  const { data: stats, isLoading: loading } = useSWR<any>(`${apiBase}/league/stats?live=true`)
 
   if (loading) {
     return (

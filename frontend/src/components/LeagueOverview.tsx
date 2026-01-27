@@ -130,7 +130,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [liveRefreshKey, setLiveRefreshKey] = useState(0)
 
   // Load league stats (SWR caches and dedupes)
-  const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats`)
+  const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats?live=true`)
   const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
   const currentWeek = summary?.current_matchup_period ?? null
   const weekKey = currentWeek ? `${apiBase}/week/current?t=${liveRefreshKey}` : null
