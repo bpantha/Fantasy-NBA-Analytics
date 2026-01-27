@@ -25,7 +25,7 @@ export default function TeamModal({ teamName, apiBase, onClose }: TeamModalProps
   }, [weeks, selectedWeek])
 
   const weekKey = selectedWeek
-    ? `${apiBase}/week/${selectedWeek}${currentWeek != null && selectedWeek === currentWeek ? '?live=true' : ''}`
+    ? (currentWeek != null && selectedWeek === currentWeek ? `${apiBase}/week/current` : `${apiBase}/week/${selectedWeek}`)
     : null
   const { data: weekData, isLoading: loading } = useSWR(weekKey)
 

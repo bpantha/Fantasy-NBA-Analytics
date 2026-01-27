@@ -82,7 +82,7 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
 
   // Selected week data (SWR caches; live=true only for current week)
   const weekKey = selectedTeam && selectedWeek
-    ? `${apiBase}/week/${selectedWeek}${selectedWeek === currentWeek ? '?live=true' : ''}`
+    ? (selectedWeek === currentWeek ? `${apiBase}/week/current` : `${apiBase}/week/${selectedWeek}`)
     : null
   const { data: weekData, mutate: mutateWeek, isLoading: loadingWeek } = useSWR<WeekData>(weekKey)
 

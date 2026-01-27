@@ -535,19 +535,10 @@ def main():
             print(f"  Error exporting week {week}: {e}")
             continue
     
-    # Also export current week for initial setup/fallback
-    print(f"Exporting current week {current_period} (for fallback)...")
-    try:
-        week_data = export_week_analytics(league, current_period)
-        if week_data:
-            with open(DATA_DIR / f'week{current_period}.json', 'w') as f:
-                json.dump(week_data, f, indent=2, default=json_serial)
-            exported_count += 1
-    except Exception as e:
-        print(f"  Error exporting current week: {e}")
-    
+    # Do not export current week: the API always fetches it live. This avoids the
+    # 12am export overwriting or providing stale data for the in-progress week.
     print(f"Export complete! Exported {exported_count} weeks.")
-    print(f"Note: Week {current_period} will be fetched live by the API when requested.")
+    print(f"Note: Week {current_period} (current) is always fetched live by the API; not written to file.")
 
 if __name__ == '__main__':
     main()

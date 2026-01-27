@@ -36,6 +36,8 @@ def add_cache_control(response):
         response.headers['Cache-Control'] = 'no-store'
     elif request.path in ('/api/weeks', '/api/league/summary') or request.path.startswith('/api/players') or request.path.startswith('/api/teams') or request.path.startswith('/api/compare/'):
         response.headers['Cache-Control'] = 'public, max-age=300'
+    elif request.path == '/api/week/current':
+        response.headers['Cache-Control'] = 'no-store'
     elif request.path.startswith('/api/week/'):
         response.headers['Cache-Control'] = 'no-store' if live else 'public, max-age=300'
     elif request.path in ('/api/league/roster-totals', '/api/league/upcoming-matchups'):
@@ -109,6 +111,39 @@ def get_available_weeks():
             continue
     return jsonify({'weeks': sorted(weeks)})
 
+
+@app.route('/api/week/current', methods=['GET'])
+def get_week_current():
+    """
+    Dedicated live endpoint for the current matchup week.
+    Always fetches fresh from ESPN (no file, no cache). Same response shape as /api/week/<N>.
+    """
+    league = get_league_instance(use_cache=False)
+    if not league:
+        return jsonify({'error': 'League API unavailable. ESPN credentials required.'}), 503
+    try:
+        league.fetch_league()
+    except Exception as e:
+        print(f"fetch_league failed in /api/week/current: {e}")
+        return jsonify({'error': 'Could not refresh league from ESPN. Please try again.'}), 503
+    current = league.currentMatchupPeriod
+    try:
+        import importlib.util
+        export_path = Path(__file__).parent / 'export_analytics.py'
+        spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+        export_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(export_module)
+        data = export_module.export_week_analytics(league, current)
+    except Exception as e:
+        print(f"export_week_analytics failed for week {current}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Could not export current week data. Please try again.'}), 503
+    if not data:
+        return jsonify({'error': 'No data for current week.'}), 503
+    return jsonify(data)
+
+
 @app.route('/api/week/<int:week>', methods=['GET'])
 def get_week_data(week):
     """Get analytics data for a specific week - only fetches live data when live=true parameter is provided"""
@@ -135,17 +170,11 @@ def get_week_data(week):
                 print(f"Error fetching live data for week {week}: {e}")
                 import traceback
                 traceback.print_exc()
-            file_path = DATA_DIR / f'week{week}.json'
-            if file_path.exists():
-                with open(file_path, 'r') as f:
-                    return jsonify(json.load(f))
-            return jsonify({'error': f'Week {week} data not found'}), 404
+            # Do not fall back to 12am-exported file for current week; live only
+            return jsonify({'error': 'Live current-week data temporarily unavailable. Please try again.'}), 503
         if not league:
-            file_path = DATA_DIR / f'week{week}.json'
-            if file_path.exists():
-                with open(file_path, 'r') as f:
-                    return jsonify(json.load(f))
-            return jsonify({'error': f'Week {week} data not found and API unavailable'}), 404
+            # live=true but API unavailable; do not serve 12am file
+            return jsonify({'error': 'League API unavailable. Live data requires ESPN credentials.'}), 503
         # league exists but week != current_week: fall through to file
 
     # Historical weeks or fallback: use exported JSON files
@@ -440,8 +469,9 @@ def get_league_stats():
             import traceback
             traceback.print_exc()
     
-    # If not fetching live, or if live fetch failed, try to load current week from file
-    if current_week not in weeks:
+    # If current week is missing: when fetch_live we do not use the 12am file (override).
+    # When not fetch_live, use file if it exists.
+    if current_week not in weeks and not fetch_live:
         current_week_file = DATA_DIR / f'week{current_week}.json'
         if current_week_file.exists():
             with open(current_week_file, 'r') as f:

@@ -12,7 +12,7 @@ export default function WeekModal({ week, apiBase, onClose }: WeekModalProps) {
   const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
   const currentWeek = summary?.current_matchup_period ?? null
 
-  const weekKey = `${apiBase}/week/${week}${currentWeek != null && week === currentWeek ? '?live=true' : ''}`
+  const weekKey = currentWeek != null && week === currentWeek ? `${apiBase}/week/current` : `${apiBase}/week/${week}`
   const { data: weekData, isLoading: loading } = useSWR(weekKey)
 
   // Sort teams by total teams beaten
