@@ -67,7 +67,8 @@ def get_league_instance(use_cache=True):
     global _league_cache, _league_cache_ts
     import time
     from espn_api.basketball import League
-    if not (ESPN_S2 and ESPN_SWID):
+    has_creds = bool(ESPN_S2 and ESPN_SWID)
+    if not has_creds:
         return None
     if use_cache and _league_cache is not None and (time.time() - _league_cache_ts) < _LEAGUE_CACHE_TTL:
         return _league_cache
@@ -207,7 +208,6 @@ def get_league_summary():
     file_path = DATA_DIR / 'league_summary.json'
     if not file_path.exists():
         return jsonify({'error': 'League summary not found'}), 404
-    
     with open(file_path, 'r') as f:
         data = json.load(f)
     try:
@@ -470,6 +470,7 @@ def get_league_stats():
             continue
 
     # Always fetch live current week when League available; do not wait on 12am job
+    appended_live = False
     if league:
         try:
             import importlib.util
@@ -481,6 +482,7 @@ def get_league_stats():
             if live_current_week:
                 all_weeks_data.append(live_current_week)
                 weeks.append(current_week)
+                appended_live = True
         except Exception as e:
             print(f"Error fetching live current week for league/stats: {e}")
             import traceback
@@ -490,7 +492,7 @@ def get_league_stats():
         with open(DATA_DIR / f'week{current_week}.json', 'r') as f:
             all_weeks_data.append(json.load(f))
             weeks.append(current_week)
-    
+
     if not all_weeks_data:
         return jsonify({'error': 'No week data available'}), 404
     
@@ -1115,6 +1117,35 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
                 ft_made = float(stats['FTM'].get('value', 0))
             if 'FTA' in stats:
                 ft_attempted = float(stats['FTA'].get('value', 0))
+            
+            # Fallback: if all stats are zeros (scoreByStat empty), aggregate from lineup points_breakdown
+            all_zeros = all(projected.get(cat, 0) == 0.0 for cat in standard_cats)
+            if all_zeros and lineup:
+                # Aggregate from lineup points_breakdown (same logic as export_analytics)
+                temp_fgm, temp_fga, temp_ftm, temp_fta = 0.0, 0.0, 0.0, 0.0
+                for p in lineup:
+                    pb = getattr(p, 'points_breakdown', None) or {}
+                    projected['PTS'] += float(pb.get('PTS', 0) or 0)
+                    projected['REB'] += float(pb.get('REB', 0) or 0)
+                    projected['AST'] += float(pb.get('AST', 0) or 0)
+                    projected['STL'] += float(pb.get('STL', 0) or 0)
+                    projected['BLK'] += float(pb.get('BLK', 0) or 0)
+                    projected['3PM'] += float(pb.get('3PM', 0) or 0)
+                    projected['TO'] += float(pb.get('TO', 0) or 0)
+                    temp_fgm += float(pb.get('FGM', 0) or 0)
+                    temp_fga += float(pb.get('FGA', 0) or 0)
+                    temp_ftm += float(pb.get('FTM', 0) or 0)
+                    temp_fta += float(pb.get('FTA', 0) or 0)
+                # Calculate percentages from aggregated FGM/FGA and FTM/FTA
+                if temp_fga > 0:
+                    projected['FG%'] = temp_fgm / temp_fga
+                if temp_fta > 0:
+                    projected['FT%'] = temp_ftm / temp_fta
+                # Update fg_made/attempted and ft_made/attempted for later projection logic
+                fg_made = temp_fgm
+                fg_attempted = temp_fga
+                ft_made = temp_ftm
+                ft_attempted = temp_fta
         
         # Get pro team schedule (pro_team_id -> scoring_period -> game_data)
         pro_schedule = league.pro_schedule
