@@ -400,8 +400,9 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
             pro_team = getattr(p, 'proTeam', '') or ''
             s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
             proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-            team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
+            # Only include in lineup and totals players actually playing this day
             if has_game:
+                team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
                 for c in STANDARD_CATS:
                     if c not in ('FG%', 'FT%'):
                         team1_totals[c] += s.get(c, 0)
@@ -414,8 +415,8 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
             pro_team = getattr(p, 'proTeam', '') or ''
             s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
             proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-            team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
             if has_game:
+                team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
                 for c in STANDARD_CATS:
                     if c not in ('FG%', 'FT%'):
                         team2_totals[c] += s.get(c, 0)
