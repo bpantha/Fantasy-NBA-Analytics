@@ -358,6 +358,13 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         periods = pro_schedule.get(pro_team_id) or {}
         return bool(periods.get(str(sp)))
 
+    def is_starter(player):
+        """Only starting slots (exclude bench BE and IR). Empty slot treated as starter for roster fallback."""
+        slot = getattr(player, 'slot_position', None) or getattr(player, 'lineupSlot', None) or ''
+        if slot == '':
+            return True
+        return slot not in ('BE', 'IR')
+
     result = []
     # Use reference box lineups (matchup_total=True) so we always have a full roster to show
     ref_home_lineup = []
@@ -397,33 +404,37 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         team2_fgm = team2_fga = team2_ftm = team2_fta = 0.0
         for p in home_lineup:
             has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
+            starter = is_starter(p)
+            # Only starters with a game this day go in lineup and totals
+            if not (has_game and starter):
+                continue
             pro_team = getattr(p, 'proTeam', '') or ''
-            s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+            s = _player_season_avg_stats(p, player_lookup, year)
             proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-            # Only include in lineup and totals players actually playing this day
-            if has_game:
-                team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
-                for c in STANDARD_CATS:
-                    if c not in ('FG%', 'FT%'):
-                        team1_totals[c] += s.get(c, 0)
-                team1_fgm += s.get('_FGM', 0)
-                team1_fga += s.get('_FGA', 0)
-                team1_ftm += s.get('_FTM', 0)
-                team1_fta += s.get('_FTA', 0)
+            team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
+            for c in STANDARD_CATS:
+                if c not in ('FG%', 'FT%'):
+                    team1_totals[c] += s.get(c, 0)
+            team1_fgm += s.get('_FGM', 0)
+            team1_fga += s.get('_FGA', 0)
+            team1_ftm += s.get('_FTM', 0)
+            team1_fta += s.get('_FTA', 0)
         for p in away_lineup:
             has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
+            starter = is_starter(p)
+            if not (has_game and starter):
+                continue
             pro_team = getattr(p, 'proTeam', '') or ''
-            s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+            s = _player_season_avg_stats(p, player_lookup, year)
             proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-            if has_game:
-                team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
-                for c in STANDARD_CATS:
-                    if c not in ('FG%', 'FT%'):
-                        team2_totals[c] += s.get(c, 0)
-                team2_fgm += s.get('_FGM', 0)
-                team2_fga += s.get('_FGA', 0)
-                team2_ftm += s.get('_FTM', 0)
-                team2_fta += s.get('_FTA', 0)
+            team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': True, 'projected_stats': proj})
+            for c in STANDARD_CATS:
+                if c not in ('FG%', 'FT%'):
+                    team2_totals[c] += s.get(c, 0)
+            team2_fgm += s.get('_FGM', 0)
+            team2_fga += s.get('_FGA', 0)
+            team2_ftm += s.get('_FTM', 0)
+            team2_fta += s.get('_FTA', 0)
         if team1_fga > 0:
             team1_totals['FG%'] = team1_fgm / team1_fga
         if team1_fta > 0:
