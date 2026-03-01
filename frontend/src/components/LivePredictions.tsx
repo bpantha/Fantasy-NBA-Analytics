@@ -4,6 +4,31 @@ import { useState } from 'react'
 import useSWR from 'swr'
 // Removed bar chart imports - no longer using charts
 
+const STANDARD_CATS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
+
+interface LineupPlayer {
+  name: string
+  pro_team: string
+  has_game: boolean
+  projected_pts?: number
+  projected_stats?: Record<string, number>
+}
+
+interface DayLineup {
+  date_label: string
+  scoring_period: number
+  team1: {
+    lineup: LineupPlayer[]
+    projected_pts_total: number
+    projected_stats?: Record<string, number>
+  }
+  team2: {
+    lineup: LineupPlayer[]
+    projected_pts_total: number
+    projected_stats?: Record<string, number>
+  }
+}
+
 interface Prediction {
   team1: string
   team2: string
@@ -17,6 +42,7 @@ interface Prediction {
   }[]
   projected_score: string
   confidence: number
+  lineup_by_day?: DayLineup[]
 }
 
 interface LivePredictionsProps {
@@ -221,6 +247,129 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Lineup by day + projected stats per day */}
+              {prediction.lineup_by_day && prediction.lineup_by_day.length > 0 && (
+                <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
+                  <h3 className="text-lg md:text-xl font-bold mb-2">Lineup by Day & Projected Stats</h3>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Lineup set by each team for each remaining day and that day&apos;s projected stat totals (all categories).
+                  </p>
+                  <div className="space-y-6">
+                    {prediction.lineup_by_day.map((day, dayIdx) => (
+                      <div key={dayIdx} className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+                        <h4 className="font-semibold text-base mb-3 text-blue-300">{day.date_label}</h4>
+                        {/* Day totals for both teams */}
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div className="bg-gray-800 rounded p-2">
+                            <p className="text-sm font-semibold text-gray-300 mb-1">{prediction.team1}</p>
+                            {day.team1.projected_stats ? (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                                {STANDARD_CATS.map((cat) => (
+                                  <span key={cat} className="text-gray-400">
+                                    {cat}: <span className="text-green-400 font-medium">
+                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team1.projected_stats[cat] ?? 0) * 100).toFixed(1)}%` : (day.team1.projected_stats[cat] ?? 0).toFixed(1)}
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-green-400 text-sm">Projected: {day.team1.projected_pts_total} PTS</p>
+                            )}
+                          </div>
+                          <div className="bg-gray-800 rounded p-2">
+                            <p className="text-sm font-semibold text-gray-300 mb-1">{prediction.team2}</p>
+                            {day.team2.projected_stats ? (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                                {STANDARD_CATS.map((cat) => (
+                                  <span key={cat} className="text-gray-400">
+                                    {cat}: <span className="text-red-400 font-medium">
+                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team2.projected_stats[cat] ?? 0) * 100).toFixed(1)}%` : (day.team2.projected_stats[cat] ?? 0).toFixed(1)}
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-red-400 text-sm">Projected: {day.team2.projected_pts_total} PTS</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Per-team lineups with all stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-300 mb-2">{prediction.team1} — lineup</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-gray-400 border-b border-gray-600">
+                                    <th className="text-left py-1 pr-2">Player</th>
+                                    {STANDARD_CATS.map((c) => (
+                                      <th key={c} className="text-right py-1 px-0.5 whitespace-nowrap">{c}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {day.team1.lineup.map((p, i) => (
+                                    <tr key={i} className={p.has_game ? 'text-gray-300' : 'text-gray-500'}>
+                                      <td className="py-0.5 pr-2">
+                                        {p.name}
+                                        {p.pro_team && <span className="text-gray-500 ml-0.5">({p.pro_team})</span>}
+                                      </td>
+                                      {STANDARD_CATS.map((cat) => (
+                                        <td key={cat} className="text-right py-0.5 px-0.5">
+                                          {p.has_game && p.projected_stats
+                                            ? (cat === 'FG%' || cat === 'FT%'
+                                                ? `${((p.projected_stats[cat] ?? 0) * 100).toFixed(1)}%`
+                                                : (p.projected_stats[cat] ?? 0).toFixed(1))
+                                            : '—'}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-300 mb-2">{prediction.team2} — lineup</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-gray-400 border-b border-gray-600">
+                                    <th className="text-left py-1 pr-2">Player</th>
+                                    {STANDARD_CATS.map((c) => (
+                                      <th key={c} className="text-right py-1 px-0.5 whitespace-nowrap">{c}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {day.team2.lineup.map((p, i) => (
+                                    <tr key={i} className={p.has_game ? 'text-gray-300' : 'text-gray-500'}>
+                                      <td className="py-0.5 pr-2">
+                                        {p.name}
+                                        {p.pro_team && <span className="text-gray-500 ml-0.5">({p.pro_team})</span>}
+                                      </td>
+                                      {STANDARD_CATS.map((cat) => (
+                                        <td key={cat} className="text-right py-0.5 px-0.5">
+                                          {p.has_game && p.projected_stats
+                                            ? (cat === 'FG%' || cat === 'FT%'
+                                                ? `${((p.projected_stats[cat] ?? 0) * 100).toFixed(1)}%`
+                                                : (p.projected_stats[cat] ?? 0).toFixed(1))
+                                            : '—'}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )
         })()}

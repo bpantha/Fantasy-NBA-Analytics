@@ -233,6 +233,186 @@ def get_league_summary():
 
 STANDARD_CATS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
 
+def _get_remaining_scoring_periods_through_sunday(league):
+    """Return list of scoring period IDs from current_week through end of matchup week (Sunday).
+    Uses pro_schedule game dates so we include all days through Sunday, not just today."""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    weekday = now.weekday()  # 0=Mon, 6=Sun
+    week_sunday = (now + timedelta(days=6 - weekday)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    current_sp = league.current_week
+    pro_schedule = getattr(league, 'pro_schedule', None) or {}
+    sp_in_range = set()
+    for _pro_team_id, periods in pro_schedule.items():
+        for sp_str, games in (periods or {}).items():
+            if not games:
+                continue
+            for g in games:
+                try:
+                    d = datetime.fromtimestamp(g['date'] / 1000.0)
+                except (KeyError, TypeError):
+                    continue
+                if today_start <= d <= week_sunday:
+                    try:
+                        sp_in_range.add(int(sp_str))
+                    except (ValueError, TypeError):
+                        pass
+                    break
+    matchup_sps = league.matchup_ids.get(league.currentMatchupPeriod, [])
+    for sp in matchup_sps:
+        try:
+            sp_int = int(sp)
+            if sp_int >= current_sp:
+                sp_in_range.add(sp_int)
+        except (ValueError, TypeError):
+            continue
+    result = sorted([sp for sp in sp_in_range if sp >= current_sp])
+    return result if result else [current_sp]
+
+def _get_date_label_for_scoring_period(league, scoring_period):
+    """Return a short date label for the scoring period (e.g. 'Sat 1/18') from first game in pro_schedule."""
+    from datetime import datetime
+    pro_schedule = getattr(league, 'pro_schedule', None) or {}
+    sp_str = str(scoring_period)
+    best_ts = None
+    for _pro_team_id, periods in pro_schedule.items():
+        games = (periods or {}).get(sp_str)
+        if not games:
+            continue
+        try:
+            ts = games[0]['date'] / 1000.0
+            if best_ts is None or ts < best_ts:
+                best_ts = ts
+        except (KeyError, TypeError, IndexError):
+            continue
+    if best_ts is None:
+        return f'Period {scoring_period}'
+    d = datetime.fromtimestamp(best_ts)
+    return d.strftime('%a %m/%d')
+
+def _player_season_avg_stats(player, player_lookup, league_year):
+    """Get season average stats for all standard categories. Returns dict with STANDARD_CATS plus FGM,FGA,FTM,FTA for team % calc."""
+    cats = STANDARD_CATS
+    out = {c: 0.0 for c in cats}
+    try:
+        stats = None
+        pid = getattr(player, 'playerId', None)
+        if pid and player_lookup and pid in player_lookup:
+            rp = player_lookup[pid]
+            stats = getattr(rp, 'stats', {})
+        if not stats:
+            stats = getattr(player, 'stats', {})
+        total = stats.get(f'{league_year}_total', {})
+        avg = total.get('avg', {}) if isinstance(total, dict) else {}
+        if not isinstance(avg, dict):
+            return out
+        for c in cats:
+            if c in ('FG%', 'FT%'):
+                continue
+            val = avg.get(c)
+            if val is not None:
+                out[c] = float(val)
+        fgm = float(avg.get('FGM', 0) or 0)
+        fga = float(avg.get('FGA', 0) or 0)
+        ftm = float(avg.get('FTM', 0) or 0)
+        fta = float(avg.get('FTA', 0) or 0)
+        if fga > 0:
+            out['FG%'] = fgm / fga
+        if fta > 0:
+            out['FT%'] = ftm / fta
+        # Expose for team aggregation (caller can sum these)
+        out['_FGM'] = fgm
+        out['_FGA'] = fga
+        out['_FTM'] = ftm
+        out['_FTA'] = fta
+    except Exception:
+        pass
+    return out
+
+def _player_season_avg_pts(player, player_lookup, league_year):
+    """Get season average PTS for a player from roster stats."""
+    return _player_season_avg_stats(player, player_lookup, league_year).get('PTS', 0.0)
+
+def _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup):
+    """Build per-day lineup and projected stats (all cats) for one matchup. Returns list of { date_label, scoring_period, team1, team2 }."""
+    remaining = _get_remaining_scoring_periods_through_sunday(league)
+    home_id = getattr(home_team, 'team_id', home_team) if not isinstance(home_team, int) else home_team
+    away_id = getattr(away_team, 'team_id', away_team) if not isinstance(away_team, int) else away_team
+    year = league.year
+    result = []
+    for sp in remaining:
+        try:
+            day_boxes = league.box_scores(matchup_period=current_week, scoring_period=sp, matchup_total=False)
+        except Exception:
+            day_boxes = []
+        box = None
+        for b in day_boxes:
+            h = getattr(b.home_team, 'team_id', b.home_team)
+            a = getattr(b.away_team, 'team_id', b.away_team)
+            if h == home_id and a == away_id:
+                box = b
+                break
+        date_label = _get_date_label_for_scoring_period(league, sp)
+        team1_lineup = []
+        team1_totals = {c: 0.0 for c in STANDARD_CATS}
+        team1_fgm = team1_fga = team1_ftm = team1_fta = 0.0
+        team2_lineup = []
+        team2_totals = {c: 0.0 for c in STANDARD_CATS}
+        team2_fgm = team2_fga = team2_ftm = team2_fta = 0.0
+        if box:
+            for p in (box.home_lineup or []):
+                has_game = getattr(p, 'game_played', 0) == 100 or getattr(p, 'pro_opponent', 'None') != 'None'
+                pro_team = getattr(p, 'proTeam', '') or ''
+                s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+                proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+                team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
+                if has_game:
+                    for c in STANDARD_CATS:
+                        if c not in ('FG%', 'FT%'):
+                            team1_totals[c] += s.get(c, 0)
+                    team1_fgm += s.get('_FGM', 0)
+                    team1_fga += s.get('_FGA', 0)
+                    team1_ftm += s.get('_FTM', 0)
+                    team1_fta += s.get('_FTA', 0)
+            for p in (box.away_lineup or []):
+                has_game = getattr(p, 'game_played', 0) == 100 or getattr(p, 'pro_opponent', 'None') != 'None'
+                pro_team = getattr(p, 'proTeam', '') or ''
+                s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+                proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+                team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
+                if has_game:
+                    for c in STANDARD_CATS:
+                        if c not in ('FG%', 'FT%'):
+                            team2_totals[c] += s.get(c, 0)
+                    team2_fgm += s.get('_FGM', 0)
+                    team2_fga += s.get('_FGA', 0)
+                    team2_ftm += s.get('_FTM', 0)
+                    team2_fta += s.get('_FTA', 0)
+        if team1_fga > 0:
+            team1_totals['FG%'] = team1_fgm / team1_fga
+        if team1_fta > 0:
+            team1_totals['FT%'] = team1_ftm / team1_fta
+        if team2_fga > 0:
+            team2_totals['FG%'] = team2_fgm / team2_fga
+        if team2_fta > 0:
+            team2_totals['FT%'] = team2_ftm / team2_fta
+        result.append({
+            'date_label': date_label,
+            'scoring_period': sp,
+            'team1': {
+                'lineup': team1_lineup,
+                'projected_pts_total': round(team1_totals.get('PTS', 0), 1),
+                'projected_stats': {c: round(team1_totals[c], (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+            },
+            'team2': {
+                'lineup': team2_lineup,
+                'projected_pts_total': round(team2_totals.get('PTS', 0), 1),
+                'projected_stats': {c: round(team2_totals[c], (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+            }
+        })
+    return result
+
 def _player_season_avg(stat_block):
     """Get per-game averages from stat block: prefer 'avg'; if missing, derive from total/GP."""
     if not stat_block:
@@ -1072,12 +1252,14 @@ def get_predictions():
             if (not team1 and not team2) or \
                ((team1.lower() == home_name.lower() and team2.lower() == away_name.lower()) or
                 (team1.lower() == away_name.lower() and team2.lower() == home_name.lower())):
+                lineup_by_day = _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup)
                 predictions.append({
                     'team1': home_name,
                     'team2': away_name,
                     'categories': categories,
                     'projected_score': projected_score,
-                    'confidence': confidence
+                    'confidence': confidence,
+                    'lineup_by_day': lineup_by_day
                 })
         
         return jsonify({'predictions': predictions})
@@ -1170,9 +1352,7 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
         # Get pro team schedule (pro_team_id -> scoring_period -> game_data)
         pro_schedule = league.pro_schedule
         
-        # Find which scoring periods are in the current matchup period
-        # current_week is a matchup_period (1, 2, 3, etc.)
-        # league.matchup_ids maps matchup_period -> list of scoring_period strings
+        # Find remaining scoring periods (from current through end of matchup — through Sunday)
         matchup_scoring_periods = league.matchup_ids.get(current_week, [])
         current_scoring_period = league.current_week  # This is the current scoring period ID (large number like 114)
         
@@ -1185,40 +1365,24 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
             except (ValueError, TypeError):
                 continue
         
-        # Find remaining scoring periods (from current through end of matchup)
-        # Only include scoring periods that are >= current
-        remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
+        # Use full week through Sunday so we don't only project today (e.g. Saturday) and miss Sunday
+        if current_week == league.currentMatchupPeriod:
+            remaining_periods = _get_remaining_scoring_periods_through_sunday(league)
+        else:
+            remaining_periods = [sp for sp in scoring_periods if sp >= current_scoring_period]
         
-        # If no remaining periods found, calculate based on matchup end date
-        # Matchups typically run Monday-Sunday, so we need to find when this matchup ends
+        # If no remaining periods found (historical or edge case), fallback
         if not remaining_periods:
             from datetime import datetime, timedelta
-            
-            # Calculate days until Sunday (matchups typically end Sunday)
             today = datetime.now()
-            days_until_sunday = (6 - today.weekday()) % 7  # 0 = Monday, 6 = Sunday
+            days_until_sunday = (6 - today.weekday()) % 7
             if days_until_sunday == 0 and today.weekday() != 6:
-                days_until_sunday = 7  # If today is Sunday, count it; otherwise next Sunday
-            
-            # If today is Sunday, include today (0 days)
+                days_until_sunday = 7
             if today.weekday() == 6:
                 days_until_sunday = 0
-            
-            # Limit to maximum 3 days (Friday->Sunday = 2 days, Saturday->Sunday = 1 day, Sunday = 0 days)
-            # This prevents counting too many days if matchup_ids is wrong
-            days_remaining = min(days_until_sunday + 1, 3)  # +1 to include today
-            
-            # Only count periods from current through the calculated end
-            # Each scoring period typically represents one day
+            days_remaining = min(days_until_sunday + 1, 3)
             end_period = min(current_scoring_period + days_remaining - 1, league.finalScoringPeriod)
             remaining_periods = list(range(current_scoring_period, end_period + 1))
-            
-            # If we have matchup scoring periods but they're all less than current, 
-            # the matchup might have already ended - don't project future games
-            if scoring_periods and all(sp < current_scoring_period for sp in scoring_periods):
-                # Matchup appears to have ended, but we're still in it - use calculated days
-                # This handles edge cases where matchup_ids data is stale
-                pass
         
         # For each remaining scoring period, check which players have games
         for scoring_period in remaining_periods:
