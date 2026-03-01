@@ -177,9 +177,9 @@ def export_week_analytics(league, matchup_period):
                 elif prev_sp is not None:
                     cand = prev_sp
             elif all_z and not ids:
-                # matchup_ids often empty for current period. Try current_week - 1, -2, ... as fallback.
+                # matchup_ids often empty for current period. Try at most one previous scoring period (Phase 4: cap ESPN calls), then lineup agg.
                 cw = league.current_week
-                for delta in (1, 2, 3):
+                for delta in (1,):  # Only try current_week - 1, then go to lineup aggregation
                     cand = cw - delta
                     if cand < 1:
                         break
@@ -319,8 +319,28 @@ def export_week_analytics(league, matchup_period):
 
         if is_current:
             week_monday, week_sunday = _get_week_monday_sunday()
-            sp_list = _get_scoring_periods_in_week_range(league, matchup_period, week_monday, week_sunday)
-            if sp_list:
+            # Phase 4: Try existing box_scores lineups first to avoid extra box_scores() calls
+            for box_score in box_scores:
+                ht = box_score.home_team
+                at = box_score.away_team
+                if isinstance(ht, int):
+                    ht = league.get_team_data(ht)
+                if isinstance(at, int):
+                    at = league.get_team_data(at)
+                if hasattr(box_score, 'home_lineup') and hasattr(box_score, 'away_lineup'):
+                    hm, hg = _add_from_lineup(box_score.home_lineup)
+                    am, ag = _add_from_lineup(box_score.away_lineup)
+                    team_minutes[ht] += hm
+                    team_minutes[at] += am
+                    team_games_played[ht] += hg
+                    team_games_played[at] += ag
+                    matchup_minutes[(ht, at)] = matchup_minutes.get((ht, at), 0) + hm
+                    matchup_minutes[(at, ht)] = matchup_minutes.get((at, ht), 0) + am
+            # Only fetch per–scoring-period if we got no minutes from main box_scores (e.g. lineups empty)
+            total_mins = sum(team_minutes.values())
+            if total_mins == 0:
+                sp_list = _get_scoring_periods_in_week_range(league, matchup_period, week_monday, week_sunday)
+            if total_mins == 0 and sp_list:
                 def _fetch_sp(sp):
                     try:
                         return league.box_scores(matchup_period=matchup_period, scoring_period=sp, matchup_total=False)
@@ -349,8 +369,8 @@ def export_week_analytics(league, matchup_period):
                             team_games_played[at] += ag
                             matchup_minutes[(ht, at)] = matchup_minutes.get((ht, at), 0) + hm
                             matchup_minutes[(at, ht)] = matchup_minutes.get((at, ht), 0) + am
-            else:
-                # Fallback: use existing box_scores with health/played filters
+            elif total_mins == 0 and not sp_list:
+                # sp_list empty: use existing box_scores lineups only
                 for box_score in box_scores:
                     ht = box_score.home_team
                     at = box_score.away_team

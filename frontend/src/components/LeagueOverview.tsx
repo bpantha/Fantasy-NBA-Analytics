@@ -94,6 +94,8 @@ interface LeagueStats {
     blowout_win_most: Array<{ name: string; blowout_wins: number }>
     blowout_loss_most: Array<{ name: string; blowout_losses: number }>
   }
+  /** Phase 1: current week payload included so Overview avoids a second request */
+  current_week_data?: CurrentWeekData
 }
 
 interface CurrentWeekTeam {
@@ -129,18 +131,20 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
   const [showClutchModal, setShowClutchModal] = useState(false)
   const [liveRefreshKey, setLiveRefreshKey] = useState(0)
 
-  // Load league stats (SWR caches and dedupes)
+  // Phase 1: Single request for Overview — league/stats includes current_week_data
   const { data: stats, isLoading: loadingStats } = useSWR<LeagueStats>(`${apiBase}/league/stats?live=true`)
   const { data: summary } = useSWR<{ current_matchup_period: number }>(`${apiBase}/league/summary`)
-  const currentWeek = summary?.current_matchup_period ?? null
-  const weekKey = currentWeek ? `${apiBase}/week/current?t=${liveRefreshKey}` : null
-  const { data: currentWeekData, error: errorCurrentWeek, isValidating: isValidatingCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
+  const currentWeek = summary?.current_matchup_period ?? stats?.current_week_data?.matchup_period ?? null
+  // Only fetch week/current when user clicks "Refresh live" (Phase 1: no duplicate request on load)
+  const weekKey = liveRefreshKey > 0 && currentWeek ? `${apiBase}/week/current?refresh=1&t=${liveRefreshKey}` : null
+  const { data: refreshedWeekData, error: errorCurrentWeek, isValidating: isValidatingCurrentWeek } = useSWR<CurrentWeekData>(weekKey)
+  // Current week: from stats (initial) or from refresh request
+  const currentWeekData = refreshedWeekData ?? stats?.current_week_data ?? null
 
   const loading = loadingStats
-  const loadingCurrentWeek = !!currentWeek && !currentWeekData && !errorCurrentWeek
 
-  // Show loading state while fetching initial data or current week data
-  if (loading || loadingCurrentWeek) {
+  // Show loading only until stats are ready (Phase 2: progressive — don't block on current week)
+  if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
         <div className="text-center">
@@ -159,7 +163,7 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     )
   }
 
-  if (errorCurrentWeek && currentWeek) {
+  if (errorCurrentWeek && currentWeek && liveRefreshKey > 0) {
     return (
       <div className="text-center py-20">
         <p className="text-red-400 mb-4">Error loading current week data. Please try again.</p>
@@ -173,18 +177,8 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
     )
   }
 
-  // Don't show other content until current week data is loaded
-  if (!currentWeekData || !currentWeek) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading current week data...</p>
-        </div>
-      </div>
-    )
-  }
-
+  // Phase 2: No longer block entire page on current week — show skeleton in that section if missing
+  // (current_week_data is included in stats from Phase 1, so usually present)
   const categories = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
   const categoryEmojis: Record<string, string> = {
     'PTS': '🏀',
@@ -295,10 +289,10 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Current Week Category Dominators KPIs */}
+      {/* Current Week Category Dominators KPIs — Phase 2: skeleton when data not yet in stats */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <h2 className="text-xl md:text-2xl font-bold">🏆 Week {currentWeek} Category Dominators</h2>
+          <h2 className="text-xl md:text-2xl font-bold">🏆 Week {currentWeek ?? '…'} Category Dominators</h2>
           <button
             onClick={() => setLiveRefreshKey((k) => k + 1)}
             disabled={isValidatingCurrentWeek}
@@ -308,18 +302,22 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             {isValidatingCurrentWeek ? '… Refreshing' : '🔄 Refresh live'}
           </button>
         </div>
+        {!currentWeekData ? (
+          <div className="flex items-center justify-center py-8 text-gray-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mr-2" />
+            <span>Loading current week data…</span>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {categories.map(cat => {
             const dominator = currentWeekCategoryDominators[cat]
             if (!dominator) return null
-            
             const emoji = categoryEmojis[cat] || '📊'
             const displayValue = cat === 'FG%' || cat === 'FT%' 
               ? `${(dominator.value * 100).toFixed(1)}%`
               : cat === 'TO'
-              ? dominator.value.toFixed(0)  // TO is a whole number
+              ? dominator.value.toFixed(0)
               : dominator.value.toFixed(1)
-            
             return (
               <div
                 key={cat}
@@ -339,11 +337,17 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             )
           })}
         </div>
+        )}
       </section>
 
       {/* Current Week Team Performance Table */}
       <section className="bg-gray-800 p-3 md:p-6 rounded-lg overflow-x-auto">
-        <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Week {currentWeek} Team Performance</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4">📊 Week {currentWeek ?? '…'} Team Performance</h2>
+        {!currentWeekData ? (
+          <div className="flex items-center justify-center py-8 text-gray-400">
+            <span>Loading…</span>
+          </div>
+        ) : (
         <div className="min-w-full">
           <table className="w-full text-sm md:text-base">
             <thead className="bg-gray-700">
@@ -425,13 +429,14 @@ export default function LeagueOverview({ apiBase }: { apiBase: string }) {
             </tbody>
           </table>
         </div>
+        )}
         <p className="text-xs md:text-sm text-gray-400 mt-3">
           👆 Click on a team name to view details. Mins and GP: healthy/DTD players who played; current week is Mon–Sun only.
         </p>
       </section>
 
-      {/* Rest of content - only show after current week data is loaded */}
-      {currentWeekData && currentWeek && (
+      {/* Rest of content — show whenever we have stats (Phase 2: no longer gated on current week) */}
+      {currentWeek && (
         <>
         {/* Streaks & Trends KPI Bar */}
         {stats.streaks_trends && (

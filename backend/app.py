@@ -28,7 +28,7 @@ CORS(app)  # Enable CORS for frontend
 
 @app.after_request
 def add_cache_control(response):
-    """Set Cache-Control on API JSON responses. Live/fresh endpoints: 60s. Historical/static: 5 min."""
+    """Set Cache-Control on API JSON responses. Live/fresh endpoints: 60–90s. Historical/static: 5 min."""
     if response.status_code != 200 or not request.path.startswith('/api/'):
         return response
     live = request.args.get('live', 'false').lower() == 'true'
@@ -37,13 +37,14 @@ def add_cache_control(response):
     elif request.path in ('/api/weeks', '/api/league/summary') or request.path.startswith('/api/players') or request.path.startswith('/api/teams') or request.path.startswith('/api/compare/'):
         response.headers['Cache-Control'] = 'public, max-age=300'
     elif request.path == '/api/week/current':
-        response.headers['Cache-Control'] = 'no-store'
+        # Cache 90s to improve live data load times (backend also has 90s in-memory cache)
+        response.headers['Cache-Control'] = 'private, max-age=90'
     elif request.path.startswith('/api/week/'):
         response.headers['Cache-Control'] = 'no-store' if live else 'public, max-age=300'
     elif request.path in ('/api/league/roster-totals', '/api/league/upcoming-matchups'):
         response.headers['Cache-Control'] = 'private, max-age=300'
     elif request.path == '/api/league/stats':
-        response.headers['Cache-Control'] = 'private, max-age=60'
+        response.headers['Cache-Control'] = 'private, max-age=90'
     elif request.path in ('/api/predictions', '/api/predictions/matchups'):
         response.headers['Cache-Control'] = 'private, max-age=60'
     return response
@@ -61,6 +62,49 @@ ESPN_SWID = os.getenv('ESPN_SWID', '')
 _league_cache = None
 _league_cache_ts = 0.0
 _LEAGUE_CACHE_TTL = 60  # seconds
+
+# Current-week analytics cache: avoid duplicate export_week_analytics calls (stats + week/current)
+_current_week_cache = None
+_current_week_cache_ts = 0.0
+_CURRENT_WEEK_CACHE_TTL = 90  # seconds — improve live data load times by reusing for 90s
+
+def _get_current_week_data(force_refresh=False):
+    """Return current week analytics (cached 90s). Used by league/stats and week/current. Caller can force_refresh to bypass cache."""
+    global _current_week_cache, _current_week_cache_ts
+    import time
+    if not force_refresh and _current_week_cache is not None and (time.time() - _current_week_cache_ts) < _CURRENT_WEEK_CACHE_TTL:
+        return _current_week_cache
+    league = get_league_instance(use_cache=False)
+    if not league:
+        return None
+    try:
+        league.fetch_league()
+    except Exception as e:
+        print(f"fetch_league in _get_current_week_data: {e}")
+        return None
+    current = league.currentMatchupPeriod
+    try:
+        import importlib.util
+        export_path = Path(__file__).parent / 'export_analytics.py'
+        spec = importlib.util.spec_from_file_location("export_analytics", export_path)
+        export_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(export_module)
+        data = export_module.export_week_analytics(league, current)
+    except Exception as e:
+        print(f"export_week_analytics in _get_current_week_data: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    if data:
+        _current_week_cache = data
+        _current_week_cache_ts = time.time()
+    return data
+
+def clear_current_week_cache():
+    """Clear current-week cache so next request fetches fresh from ESPN. Used when ?refresh=1."""
+    global _current_week_cache, _current_week_cache_ts
+    _current_week_cache = None
+    _current_week_cache_ts = 0.0
 
 def get_league_instance(use_cache=True):
     """Get initialized ESPN League instance. Uses in-memory cache (60s TTL) when use_cache=True to speed up repeated live requests."""
@@ -131,32 +175,15 @@ def get_available_weeks():
 @app.route('/api/week/current', methods=['GET'])
 def get_week_current():
     """
-    Dedicated live endpoint for the current matchup week.
-    Always fetches fresh from ESPN (no file, no cache). Same response shape as /api/week/<N>.
+    Live endpoint for the current matchup week. Uses shared 90s cache unless ?refresh=1.
+    Same response shape as /api/week/<N>.
     """
-    league = get_league_instance(use_cache=False)
-    if not league:
-        return jsonify({'error': 'League API unavailable. ESPN credentials required.'}), 503
-    try:
-        league.fetch_league()
-    except Exception as e:
-        print(f"fetch_league failed in /api/week/current: {e}")
-        return jsonify({'error': 'Could not refresh league from ESPN. Please try again.'}), 503
-    current = league.currentMatchupPeriod
-    try:
-        import importlib.util
-        export_path = Path(__file__).parent / 'export_analytics.py'
-        spec = importlib.util.spec_from_file_location("export_analytics", export_path)
-        export_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(export_module)
-        data = export_module.export_week_analytics(league, current)
-    except Exception as e:
-        print(f"export_week_analytics failed for week {current}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': 'Could not export current week data. Please try again.'}), 503
+    force_refresh = request.args.get('refresh', '').lower() in ('1', 'true', 'yes')
+    if force_refresh:
+        clear_current_week_cache()
+    data = _get_current_week_data(force_refresh=force_refresh)
     if not data:
-        return jsonify({'error': 'No data for current week.'}), 503
+        return jsonify({'error': 'League API unavailable or no data for current week. ESPN credentials required.'}), 503
     return jsonify(data)
 
 
@@ -169,27 +196,13 @@ def get_week_data(week):
     if fetch_live:
         league = get_league_instance()
         if league and week == league.currentMatchupPeriod:
-            try:
-                league.fetch_league()  # Refresh from ESPN so current-week stats are up to date
-            except Exception as e:
-                print(f"fetch_league before export failed: {e}")
-            try:
-                import importlib.util
-                export_path = Path(__file__).parent / 'export_analytics.py'
-                spec = importlib.util.spec_from_file_location("export_analytics", export_path)
-                export_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(export_module)
-                live_data = export_module.export_week_analytics(league, week)
-                if live_data:
-                    return jsonify(live_data)
-            except Exception as e:
-                print(f"Error fetching live data for week {week}: {e}")
-                import traceback
-                traceback.print_exc()
-            # Do not fall back to 12am-exported file for current week; live only
+            data = _get_current_week_data(force_refresh=False)
+            if not data:
+                data = _get_current_week_data(force_refresh=True)
+            if data:
+                return jsonify(data)
             return jsonify({'error': 'Live current-week data temporarily unavailable. Please try again.'}), 503
         if not league:
-            # live=true but API unavailable; do not serve 12am file
             return jsonify({'error': 'League API unavailable. Live data requires ESPN credentials.'}), 503
         # league exists but week != current_week: fall through to file
 
@@ -440,8 +453,9 @@ def compare_teams(team1, team2):
 
 @app.route('/api/league/stats', methods=['GET'])
 def get_league_stats():
-    """Get aggregated league statistics. Always fetches live current week when ESPN API available (no 12am wait)."""
+    """Get aggregated league statistics. Uses cached current week when available (90s TTL). Includes current_week_data for Overview."""
     from collections import defaultdict
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     # Prefer live League for current week; fall back to 12am file only when API unavailable
     league = get_league_instance(use_cache=True)
@@ -454,44 +468,46 @@ def get_league_stats():
     else:
         current_week = get_current_week(fetch_live=False)
 
-    # Load historical weeks from files only (12am export). Never use file for current week.
+    # Load historical weeks from files in parallel (Phase 6)
+    week_files = sorted(DATA_DIR.glob('week*.json'))
     all_weeks_data = []
     weeks = []
-    for file in sorted(DATA_DIR.glob('week*.json')):
-        week_num = file.stem.replace('week', '')
-        try:
-            week_num = int(week_num)
-            if week_num == current_week:
-                continue
-            weeks.append(week_num)
-            with open(file, 'r') as f:
-                all_weeks_data.append(json.load(f))
-        except Exception:
-            continue
 
-    # Always fetch live current week when League available; do not wait on 12am job
-    appended_live = False
-    if league:
+    def load_week_file(fpath):
         try:
-            import importlib.util
-            export_path = Path(__file__).parent / 'export_analytics.py'
-            spec = importlib.util.spec_from_file_location("export_analytics", export_path)
-            export_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(export_module)
-            live_current_week = export_module.export_week_analytics(league, current_week)
-            if live_current_week:
-                all_weeks_data.append(live_current_week)
-                weeks.append(current_week)
-                appended_live = True
-        except Exception as e:
-            print(f"Error fetching live current week for league/stats: {e}")
-            import traceback
-            traceback.print_exc()
+            num = fpath.stem.replace('week', '')
+            num = int(num)
+            if num == current_week:
+                return None
+            with open(fpath, 'r') as f:
+                return (num, json.load(f))
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=min(8, len(week_files) or 1)) as ex:
+        futures = [ex.submit(load_week_file, f) for f in week_files]
+        for fut in as_completed(futures):
+            res = fut.result()
+            if res:
+                weeks.append(res[0])
+                all_weeks_data.append(res[1])
+
+    # Sort by matchup_period so order is consistent
+    all_weeks_data.sort(key=lambda x: x.get('matchup_period', 0))
+    weeks = sorted(set(weeks))
+
+    # Current week from shared cache (Phase 3) — no duplicate export
+    live_current_week = None
+    if league:
+        live_current_week = _get_current_week_data(force_refresh=False)
+        if live_current_week:
+            all_weeks_data.append(live_current_week)
+            weeks.append(current_week)
     elif (DATA_DIR / f'week{current_week}.json').exists():
-        # No League API: fall back to 12am file for current week if present (rare)
         with open(DATA_DIR / f'week{current_week}.json', 'r') as f:
             all_weeks_data.append(json.load(f))
             weeks.append(current_week)
+    weeks = sorted(set(weeks))
 
     if not all_weeks_data:
         return jsonify({'error': 'No week data available'}), 404
@@ -899,7 +915,11 @@ def get_league_stats():
     for team_name, stats in team_stats.items():
         category_wins_by_team[team_name] = dict(stats['category_wins'])
     results['category_wins_by_team'] = category_wins_by_team
-    
+
+    # Phase 1: Include current week payload so Overview doesn't need a second request
+    if live_current_week is not None:
+        results['current_week_data'] = live_current_week
+
     return jsonify(results)
 
 @app.route('/api/predictions/matchups', methods=['GET'])

@@ -93,42 +93,49 @@ export default function TeamVsLeague({ apiBase }: { apiBase: string }) {
     }
   }, [weekData, selectedWeek])
 
-  // Load historical weeks when team/week selected (HTTP cache helps repeat visits)
+  // Phase 5: Load only selected week first (from SWR above); then load other weeks in background after paint
   useEffect(() => {
     if (!selectedTeam || !selectedWeek || weeks.length === 0) {
       setAllWeeksData({})
       return
     }
 
-    let cancelled = false
     const historicalWeeks = weeks.filter((w) => w !== selectedWeek)
+    if (historicalWeeks.length === 0) return
 
-    const load = async () => {
-      setLoading(true)
-      try {
-        const results = await Promise.all(
-          historicalWeeks.map(async (week) => {
-            try {
-              const res = await axios.get(`${apiBase}/week/${week}`)
-              return { week, data: res.data as WeekData }
-            } catch (err) {
-              console.error(`Error loading historical week ${week}:`, err)
-              return null
-            }
-          })
-        )
-        if (cancelled) return
-        const merged: Record<number, WeekData> = {}
-        for (const r of results) {
-          if (r) merged[r.week] = r.data
+    let cancelled = false
+    // Defer so selected week (from SWR) can paint first
+    const id = requestAnimationFrame(() => {
+      const load = async () => {
+        setLoading(true)
+        try {
+          const results = await Promise.all(
+            historicalWeeks.map(async (week) => {
+              try {
+                const res = await axios.get(`${apiBase}/week/${week}`)
+                return { week, data: res.data as WeekData }
+              } catch (err) {
+                console.error(`Error loading historical week ${week}:`, err)
+                return null
+              }
+            })
+          )
+          if (cancelled) return
+          const merged: Record<number, WeekData> = {}
+          for (const r of results) {
+            if (r) merged[r.week] = r.data
+          }
+          setAllWeeksData((prev) => ({ ...prev, ...merged }))
+        } finally {
+          if (!cancelled) setLoading(false)
         }
-        setAllWeeksData((prev) => ({ ...prev, ...merged }))
-      } finally {
-        if (!cancelled) setLoading(false)
       }
+      load()
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(id)
     }
-    load()
-    return () => { cancelled = true }
   }, [selectedTeam, selectedWeek, apiBase, weeks])
 
   const refreshCurrentWeek = () => {
