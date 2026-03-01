@@ -334,18 +334,45 @@ def _player_season_avg_pts(player, player_lookup, league_year):
     """Get season average PTS for a player from roster stats."""
     return _player_season_avg_stats(player, player_lookup, league_year).get('PTS', 0.0)
 
-def _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup):
-    """Build per-day lineup and projected stats (all cats) for one matchup. Returns list of { date_label, scoring_period, team1, team2 }."""
+def _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup, reference_box_score=None, pro_team_reverse_map=None):
+    """Build per-day lineup and projected stats (all cats) for one matchup.
+    Uses reference_box_score lineups when provided (so we always have players); otherwise fetches per-day box_scores.
+    Returns list of { date_label, scoring_period, team1, team2 }."""
     remaining = _get_remaining_scoring_periods_through_sunday(league)
     home_id = getattr(home_team, 'team_id', home_team) if not isinstance(home_team, int) else home_team
     away_id = getattr(away_team, 'team_id', away_team) if not isinstance(away_team, int) else away_team
     year = league.year
+    pro_schedule = getattr(league, 'pro_schedule', None) or {}
+    if pro_team_reverse_map is None:
+        try:
+            from espn_api.basketball.constant import PRO_TEAM_MAP
+            pro_team_reverse_map = {v: k for k, v in PRO_TEAM_MAP.items()}
+        except Exception:
+            pro_team_reverse_map = {}
+
+    def has_game_in_period(player, sp):
+        pro_team_name = getattr(player, 'proTeam', None) or ''
+        pro_team_id = pro_team_reverse_map.get(pro_team_name)
+        if not pro_team_id:
+            return False
+        periods = pro_schedule.get(pro_team_id) or {}
+        return bool(periods.get(str(sp)))
+
     result = []
+    # Use reference box lineups (matchup_total=True) so we always have a full roster to show
+    ref_home_lineup = []
+    ref_away_lineup = []
+    if reference_box_score:
+        ref_home_lineup = list(reference_box_score.home_lineup or [])
+        ref_away_lineup = list(reference_box_score.away_lineup or [])
+
     for sp in remaining:
+        # Try per-day box to get that day's lineup; if empty, use reference lineups
+        day_boxes = []
         try:
             day_boxes = league.box_scores(matchup_period=current_week, scoring_period=sp, matchup_total=False)
         except Exception:
-            day_boxes = []
+            pass
         box = None
         for b in day_boxes:
             h = getattr(b.home_team, 'team_id', b.home_team)
@@ -353,6 +380,9 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
             if h == home_id and a == away_id:
                 box = b
                 break
+        home_lineup = (box and (box.home_lineup or [])) or ref_home_lineup
+        away_lineup = (box and (box.away_lineup or [])) or ref_away_lineup
+
         date_label = _get_date_label_for_scoring_period(league, sp)
         team1_lineup = []
         team1_totals = {c: 0.0 for c in STANDARD_CATS}
@@ -360,35 +390,34 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         team2_lineup = []
         team2_totals = {c: 0.0 for c in STANDARD_CATS}
         team2_fgm = team2_fga = team2_ftm = team2_fta = 0.0
-        if box:
-            for p in (box.home_lineup or []):
-                has_game = getattr(p, 'game_played', 0) == 100 or getattr(p, 'pro_opponent', 'None') != 'None'
-                pro_team = getattr(p, 'proTeam', '') or ''
-                s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
-                proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-                team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
-                if has_game:
-                    for c in STANDARD_CATS:
-                        if c not in ('FG%', 'FT%'):
-                            team1_totals[c] += s.get(c, 0)
-                    team1_fgm += s.get('_FGM', 0)
-                    team1_fga += s.get('_FGA', 0)
-                    team1_ftm += s.get('_FTM', 0)
-                    team1_fta += s.get('_FTA', 0)
-            for p in (box.away_lineup or []):
-                has_game = getattr(p, 'game_played', 0) == 100 or getattr(p, 'pro_opponent', 'None') != 'None'
-                pro_team = getattr(p, 'proTeam', '') or ''
-                s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
-                proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
-                team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
-                if has_game:
-                    for c in STANDARD_CATS:
-                        if c not in ('FG%', 'FT%'):
-                            team2_totals[c] += s.get(c, 0)
-                    team2_fgm += s.get('_FGM', 0)
-                    team2_fga += s.get('_FGA', 0)
-                    team2_ftm += s.get('_FTM', 0)
-                    team2_fta += s.get('_FTA', 0)
+        for p in home_lineup:
+            has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
+            pro_team = getattr(p, 'proTeam', '') or ''
+            s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+            proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+            team1_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
+            if has_game:
+                for c in STANDARD_CATS:
+                    if c not in ('FG%', 'FT%'):
+                        team1_totals[c] += s.get(c, 0)
+                team1_fgm += s.get('_FGM', 0)
+                team1_fga += s.get('_FGA', 0)
+                team1_ftm += s.get('_FTM', 0)
+                team1_fta += s.get('_FTA', 0)
+        for p in away_lineup:
+            has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
+            pro_team = getattr(p, 'proTeam', '') or ''
+            s = _player_season_avg_stats(p, player_lookup, year) if has_game else {c: 0.0 for c in STANDARD_CATS}
+            proj = {c: round(s.get(c, 0), (3 if c in ('FG%', 'FT%') else 1)) for c in STANDARD_CATS}
+            team2_lineup.append({'name': getattr(p, 'name', ''), 'pro_team': pro_team, 'has_game': has_game, 'projected_stats': proj})
+            if has_game:
+                for c in STANDARD_CATS:
+                    if c not in ('FG%', 'FT%'):
+                        team2_totals[c] += s.get(c, 0)
+                team2_fgm += s.get('_FGM', 0)
+                team2_fga += s.get('_FGA', 0)
+                team2_ftm += s.get('_FTM', 0)
+                team2_fta += s.get('_FTA', 0)
         if team1_fga > 0:
             team1_totals['FG%'] = team1_fgm / team1_fga
         if team1_fta > 0:
@@ -1252,7 +1281,7 @@ def get_predictions():
             if (not team1 and not team2) or \
                ((team1.lower() == home_name.lower() and team2.lower() == away_name.lower()) or
                 (team1.lower() == away_name.lower() and team2.lower() == home_name.lower())):
-                lineup_by_day = _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup)
+                lineup_by_day = _build_lineup_by_day(league, current_week, home_team, away_team, player_lookup, reference_box_score=box_score, pro_team_reverse_map=pro_team_reverse_map)
                 predictions.append({
                     'team1': home_name,
                     'team2': away_name,
