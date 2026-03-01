@@ -199,6 +199,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                 )}
                 <p className="text-sm text-purple-200 mt-2">Confidence: {prediction.confidence}%</p>
                 <p className="text-xs text-purple-200/80 mt-1">Projections based on current stats + remaining games through Sunday</p>
+                <p className="text-xs text-purple-300/90 mt-2">↓ Scroll down for Lineup by Day &amp; projected stats per player</p>
               </div>
 
               {/* Detailed Category Breakdown */}
@@ -248,13 +249,13 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                 </div>
               </div>
 
-              {/* Lineup by day + projected stats per day */}
-              {prediction.lineup_by_day && prediction.lineup_by_day.length > 0 && (
-                <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
-                  <h3 className="text-lg md:text-xl font-bold mb-2">Lineup by Day & Projected Stats</h3>
-                  <p className="text-xs text-gray-400 mb-4">
-                    Lineup set by each team for each remaining day and that day&apos;s projected stat totals (all categories).
-                  </p>
+              {/* Lineup by day + projected stats — always show section so users know where to look */}
+              <div id="lineup-by-day" className="bg-gray-700 p-4 md:p-6 rounded-lg scroll-mt-4">
+                <h3 className="text-lg md:text-xl font-bold mb-2">Lineup by Day & Projected Stats</h3>
+                <p className="text-xs text-gray-400 mb-4">
+                  Lineup set by each team for each remaining day and that day&apos;s projected stat totals (all categories). Scroll down to see player tables.
+                </p>
+              {prediction.lineup_by_day && prediction.lineup_by_day.length > 0 ? (
                   <div className="space-y-6">
                     {prediction.lineup_by_day.map((day, dayIdx) => (
                       <div key={dayIdx} className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
@@ -368,8 +369,12 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                       </div>
                     ))}
                   </div>
-                </div>
+              ) : (
+                <p className="text-gray-400 text-sm py-4">
+                  No lineup-by-day data for this matchup. Try clicking Refresh, or check back during an active matchup week.
+                </p>
               )}
+              </div>
             </div>
           )
         })()}
