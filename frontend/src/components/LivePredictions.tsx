@@ -269,7 +269,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                                 {STANDARD_CATS.map((cat) => (
                                   <span key={cat} className="text-gray-400">
                                     {cat}: <span className="text-green-400 font-medium">
-                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team1.projected_stats[cat] ?? 0) * 100).toFixed(1)}%` : (day.team1.projected_stats[cat] ?? 0).toFixed(1)}
+                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team1.projected_stats?.[cat] ?? 0) * 100).toFixed(1)}%` : (day.team1.projected_stats?.[cat] ?? 0).toFixed(1)}
                                     </span>
                                   </span>
                                 ))}
@@ -285,7 +285,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                                 {STANDARD_CATS.map((cat) => (
                                   <span key={cat} className="text-gray-400">
                                     {cat}: <span className="text-red-400 font-medium">
-                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team2.projected_stats[cat] ?? 0) * 100).toFixed(1)}%` : (day.team2.projected_stats[cat] ?? 0).toFixed(1)}
+                                      {cat === 'FG%' || cat === 'FT%' ? `${((day.team2.projected_stats?.[cat] ?? 0) * 100).toFixed(1)}%` : (day.team2.projected_stats?.[cat] ?? 0).toFixed(1)}
                                     </span>
                                   </span>
                                 ))}
@@ -320,8 +320,8 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                                         <td key={cat} className="text-right py-0.5 px-0.5">
                                           {p.has_game && p.projected_stats
                                             ? (cat === 'FG%' || cat === 'FT%'
-                                                ? `${((p.projected_stats[cat] ?? 0) * 100).toFixed(1)}%`
-                                                : (p.projected_stats[cat] ?? 0).toFixed(1))
+                                                ? `${((p.projected_stats?.[cat] ?? 0) * 100).toFixed(1)}%`
+                                                : (p.projected_stats?.[cat] ?? 0).toFixed(1))
                                             : '—'}
                                         </td>
                                       ))}
@@ -354,8 +354,8 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
                                         <td key={cat} className="text-right py-0.5 px-0.5">
                                           {p.has_game && p.projected_stats
                                             ? (cat === 'FG%' || cat === 'FT%'
-                                                ? `${((p.projected_stats[cat] ?? 0) * 100).toFixed(1)}%`
-                                                : (p.projected_stats[cat] ?? 0).toFixed(1))
+                                                ? `${((p.projected_stats?.[cat] ?? 0) * 100).toFixed(1)}%`
+                                                : (p.projected_stats?.[cat] ?? 0).toFixed(1))
                                             : '—'}
                                         </td>
                                       ))}
