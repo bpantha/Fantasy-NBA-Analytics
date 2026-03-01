@@ -358,25 +358,18 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         periods = pro_schedule.get(pro_team_id) or {}
         return bool(periods.get(str(sp)))
 
-    def is_starter(player):
-        """Exclude bench (BE) and IR; only show players in starting slots. Empty slot treated as starter."""
-        slot = getattr(player, 'slot_position', None) or getattr(player, 'lineupSlot', None) or ''
-        if slot == '':
-            return True
-        return slot not in ('BE', 'IR')
-
     result = []
     # Use reference box lineups (matchup_total=True) so we always have a full roster to show
     ref_home_lineup = []
     ref_away_lineup = []
     if reference_box_score:
-        ref_home_lineup = [p for p in (reference_box_score.home_lineup or []) if is_starter(p)]
-        ref_away_lineup = [p for p in (reference_box_score.away_lineup or []) if is_starter(p)]
+        ref_home_lineup = list(reference_box_score.home_lineup or [])
+        ref_away_lineup = list(reference_box_score.away_lineup or [])
     # Fallback: if box score has no lineup (ESPN sometimes omits rosterForMatchupPeriod), use team rosters
     if not ref_home_lineup and hasattr(home_team, 'roster') and home_team.roster:
-        ref_home_lineup = [p for p in home_team.roster if is_starter(p)]
+        ref_home_lineup = list(home_team.roster)
     if not ref_away_lineup and hasattr(away_team, 'roster') and away_team.roster:
-        ref_away_lineup = [p for p in away_team.roster if is_starter(p)]
+        ref_away_lineup = list(away_team.roster)
 
     for sp in remaining:
         # Try per-day box to get that day's lineup; if empty, use reference lineups
@@ -392,10 +385,8 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
             if h == home_id and a == away_id:
                 box = b
                 break
-        home_lineup_raw = (box and (box.home_lineup or [])) or ref_home_lineup
-        away_lineup_raw = (box and (box.away_lineup or [])) or ref_away_lineup
-        home_lineup = [p for p in home_lineup_raw if is_starter(p)]
-        away_lineup = [p for p in away_lineup_raw if is_starter(p)]
+        home_lineup = (box and (box.home_lineup or [])) or ref_home_lineup
+        away_lineup = (box and (box.away_lineup or [])) or ref_away_lineup
 
         date_label = _get_date_label_for_scoring_period(league, sp)
         team1_lineup = []
