@@ -365,6 +365,11 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
             return True
         return slot not in ('BE', 'IR')
 
+    def is_healthy(player):
+        """Exclude OUT and DTD (day-to-day) for projections."""
+        injury = (getattr(player, 'injuryStatus', None) or '').upper()
+        return injury not in ('OUT', 'DTD', 'DAY_TO_DAY')
+
     result = []
     # Use reference box lineups (matchup_total=True) so we always have a full roster to show
     ref_home_lineup = []
@@ -405,8 +410,9 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         for p in home_lineup:
             has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
             starter = is_starter(p)
-            # Only starters with a game this day go in lineup and totals
-            if not (has_game and starter):
+            healthy = is_healthy(p)
+            # Only starters with a game this day and not OUT/DTD go in lineup and totals
+            if not (has_game and starter and healthy):
                 continue
             pro_team = getattr(p, 'proTeam', '') or ''
             s = _player_season_avg_stats(p, player_lookup, year)
@@ -422,7 +428,8 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
         for p in away_lineup:
             has_game = has_game_in_period(p, sp) or (getattr(p, 'game_played', 0) == 100) or (getattr(p, 'pro_opponent', 'None') != 'None')
             starter = is_starter(p)
-            if not (has_game and starter):
+            healthy = is_healthy(p)
+            if not (has_game and starter and healthy):
                 continue
             pro_team = getattr(p, 'proTeam', '') or ''
             s = _player_season_avg_stats(p, player_lookup, year)
@@ -1317,9 +1324,16 @@ def get_predictions():
         return jsonify({'error': str(e)}), 500
 
 def project_team_stats(box_score, team, opponent, is_home, league, current_week, player_lookup=None, pro_team_reverse_map=None):
-    """Project team stats based on current accumulated stats + remaining games through Sunday"""
+    """Project team stats based on current accumulated stats + remaining games through Sunday.
+    Only includes players who are starting (not bench/IR) and have a game."""
     standard_cats = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', 'FT%', '3PM', 'TO']
     projected = {cat: 0.0 for cat in standard_cats}
+    
+    def is_starter(player):
+        slot = getattr(player, 'slot_position', None) or getattr(player, 'lineupSlot', None) or ''
+        if slot == '':
+            return True
+        return slot not in ('BE', 'IR')
     
     # For percentage categories, we need to track numerator and denominator
     fg_made = 0.0
@@ -1369,9 +1383,14 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
             # Fallback: if all stats are zeros (scoreByStat empty), aggregate from lineup points_breakdown
             all_zeros = all(projected.get(cat, 0) == 0.0 for cat in standard_cats)
             if all_zeros and lineup:
-                # Aggregate from lineup points_breakdown (same logic as export_analytics)
+                # Aggregate from lineup points_breakdown (starters only, same as projection)
                 temp_fgm, temp_fga, temp_ftm, temp_fta = 0.0, 0.0, 0.0, 0.0
                 for p in lineup:
+                    if not is_starter(p):
+                        continue
+                    injury = (getattr(p, 'injuryStatus', None) or '').upper()
+                    if injury in ('OUT', 'DTD', 'DAY_TO_DAY'):
+                        continue
                     pb = getattr(p, 'points_breakdown', None) or {}
                     projected['PTS'] += float(pb.get('PTS', 0) or 0)
                     projected['REB'] += float(pb.get('REB', 0) or 0)
@@ -1436,9 +1455,12 @@ def project_team_stats(box_score, team, opponent, is_home, league, current_week,
             
             # Check each player in lineup
             for player in lineup:
-                # Check injury status - only include healthy or DTD players
-                injury_status = getattr(player, 'injuryStatus', None) or ''
-                if injury_status and injury_status.upper() == 'OUT':
+                # Only project starters (not bench/IR)
+                if not is_starter(player):
+                    continue
+                # Check injury status - exclude OUT and DTD (day-to-day)
+                injury_status = (getattr(player, 'injuryStatus', None) or '').upper()
+                if injury_status in ('OUT', 'DTD', 'DAY_TO_DAY'):
                     continue
                 
                 # Get player's pro team ID (using cached reverse map)

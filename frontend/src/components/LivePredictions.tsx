@@ -136,7 +136,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
           )}
         </div>
         <p className="text-xs md:text-sm text-gray-400 mb-4">
-          Select a matchup to view predictions. Predictions based on current accumulated stats + remaining games through Sunday. Only healthy/DTD players included.
+          Select a matchup to view predictions. Predictions based on current accumulated stats + remaining games through Sunday. Only starters who are healthy (OUT and DTD excluded) are included.
         </p>
 
         {/* Matchup Selector */}
@@ -206,7 +206,7 @@ export default function LivePredictions({ apiBase }: LivePredictionsProps) {
               <div className="bg-gray-700 p-4 md:p-6 rounded-lg">
                 <h3 className="text-lg md:text-xl font-bold mb-4">Projected End-of-Week Category Totals</h3>
                 <p className="text-xs text-gray-400 mb-4">
-                  Values show projected totals after all remaining games through Sunday. Only healthy/DTD players are included.
+                  Values show projected totals after all remaining games through Sunday. Only starters who are healthy (OUT and DTD excluded) are included.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                   {prediction.categories.map((cat, idx) => (
