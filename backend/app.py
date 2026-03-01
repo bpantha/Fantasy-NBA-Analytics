@@ -365,6 +365,11 @@ def _build_lineup_by_day(league, current_week, home_team, away_team, player_look
     if reference_box_score:
         ref_home_lineup = list(reference_box_score.home_lineup or [])
         ref_away_lineup = list(reference_box_score.away_lineup or [])
+    # Fallback: if box score has no lineup (ESPN sometimes omits rosterForMatchupPeriod), use team rosters
+    if not ref_home_lineup and hasattr(home_team, 'roster') and home_team.roster:
+        ref_home_lineup = list(home_team.roster)
+    if not ref_away_lineup and hasattr(away_team, 'roster') and away_team.roster:
+        ref_away_lineup = list(away_team.roster)
 
     for sp in remaining:
         # Try per-day box to get that day's lineup; if empty, use reference lineups
