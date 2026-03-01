@@ -238,6 +238,7 @@ def export_week_analytics(league, matchup_period):
                                     team_category_totals[at][cat] = bs.away_stats[cat].get('value', 0)
         
         # Final fallback: when still all zeros (scoreByStat empty), aggregate from lineup points_breakdown.
+        # For current week: always prefer lineup aggregation when we have lineups (scoreByStat can be stale — e.g. 295 vs 385 PTS).
         if matchup_period == league.currentMatchupPeriod and box_scores:
             def _all_z2():
                 for totals in team_category_totals.values():
@@ -247,6 +248,11 @@ def export_week_analytics(league, matchup_period):
                 return True
             if _all_z2():
                 team_category_totals, all_teams = _aggregate_cats_from_lineups(box_scores, league, standard_cats)
+            else:
+                # scoreByStat present but often stale for current week; use lineup totals for accuracy
+                lineup_totals, _ = _aggregate_cats_from_lineups(box_scores, league, standard_cats)
+                if lineup_totals:
+                    team_category_totals = lineup_totals
         
         # Compare teams and build analytics
         team_category_wins = defaultdict(lambda: defaultdict(set))
