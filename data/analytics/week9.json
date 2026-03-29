@@ -1,8 +1,8 @@
 {
   "matchup_period": 9,
-  "export_date": "2026-03-28T07:37:09.085962",
-  "league_avg_minutes": 776.1666666666666,
-  "league_avg_games_played": 25.333333333333332,
+  "export_date": "2026-03-29T07:43:38.520985",
+  "league_avg_minutes": 782.1666666666666,
+  "league_avg_games_played": 25.5,
   "teams": [
     {
       "name": "Kelel Me Softly bby",
@@ -10,14 +10,14 @@
       "logo_url": "https://mystique-api.fantasy.espn.com/apis/v1/domains/lm/images/20b801f0-a395-11f0-afb5-e14f006a2a34",
       "total_teams_beaten": 10,
       "total_category_wins": 65,
-      "minutes_played": 628.0,
-      "minutes_vs_opponent": 628.0,
+      "minutes_played": 707.0,
+      "minutes_vs_opponent": 707.0,
       "opponent_name": "The Jokesters",
-      "minutes_vs_league_avg": -148.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
-      "games_played": 20.0,
-      "games_played_vs_league_avg": -5.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "minutes_vs_league_avg": -75.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
+      "games_played": 22.0,
+      "games_played_vs_league_avg": -3.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 591.0,
         "REB": 214.0,
@@ -30,36 +30,18 @@
         "TO": 61.0
       },
       "beaten_teams": [
-        "The Jokesters",
         "Brown Town",
+        "Capture the Flagg",
         "Halinextyear",
         "Shai it with your chest ",
-        "Sugg(s) mah Johnson",
-        "Capture the Flagg",
-        "Dr.Js Team",
+        "The Jokesters",
         "Sengooning to Black Knueppels",
+        "Scoot on my white durantula",
+        "Sugg(s) mah Johnson",
         "Les Mercuriales",
-        "Scoot on my white durantula"
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 5,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "FG%",
-            "FT%",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "STL",
-            "BLK"
-          ]
-        },
         "Brown Town": {
           "won": 6,
           "lost": 2,
@@ -75,6 +57,24 @@
           "lost_cats": [
             "STL",
             "BLK"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "BLK",
+            "FT%",
+            "TO"
           ]
         },
         "Halinextyear": {
@@ -113,40 +113,22 @@
             "FG%"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 7,
-          "lost": 2,
+        "The Jokesters": {
+          "won": 5,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
-            "PTS",
-            "REB",
             "AST",
-            "STL",
-            "BLK",
+            "FG%",
             "FT%",
-            "3PM"
+            "3PM",
+            "TO"
           ],
           "lost_cats": [
-            "FG%",
-            "TO"
-          ]
-        },
-        "Capture the Flagg": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
             "PTS",
             "REB",
-            "AST",
             "STL",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "BLK",
-            "FT%",
-            "TO"
+            "BLK"
           ]
         },
         "Kobe Verma": {
@@ -165,6 +147,78 @@
             "BLK",
             "FG%",
             "3PM"
+          ]
+        },
+        "Sengooning to Black Knueppels": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "BLK",
+            "FG%",
+            "FT%",
+            "3PM",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST"
+          ]
+        },
+        "Scoot on my white durantula": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "REB",
+            "AST",
+            "STL",
+            "FG%",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "BLK",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 7,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FT%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "FG%",
+            "TO"
+          ]
+        },
+        "Les Mercuriales": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "AST",
+            "STL",
+            "FG%",
+            "FT%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "REB",
+            "BLK",
+            "TO"
           ]
         },
         "Dr.Js Team": {
@@ -184,60 +238,6 @@
           "lost_cats": [
             "TO"
           ]
-        },
-        "Sengooning to Black Knueppels": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "STL",
-            "BLK",
-            "FG%",
-            "FT%",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST"
-          ]
-        },
-        "Les Mercuriales": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "AST",
-            "STL",
-            "FG%",
-            "FT%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "REB",
-            "BLK",
-            "TO"
-          ]
-        },
-        "Scoot on my white durantula": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "REB",
-            "AST",
-            "STL",
-            "FG%",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "BLK",
-            "3PM"
-          ]
         }
       }
     },
@@ -250,11 +250,11 @@
       "minutes_played": 898.0,
       "minutes_vs_opponent": 898.0,
       "opponent_name": "Capture the Flagg",
-      "minutes_vs_league_avg": 121.83333333333337,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": 115.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 29.0,
-      "games_played_vs_league_avg": 3.666666666666668,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": 3.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 607.0,
         "REB": 184.0,
@@ -267,37 +267,37 @@
         "TO": 69.0
       },
       "beaten_teams": [
-        "The Jokesters",
         "Brown Town",
+        "Capture the Flagg",
         "Halinextyear",
         "Shai it with your chest ",
-        "Sugg(s) mah Johnson",
+        "The Jokesters",
         "Kelel Me Softly bby",
-        "Capture the Flagg",
-        "Dr.Js Team",
         "Sengooning to Black Knueppels",
-        "Les Mercuriales"
+        "Sugg(s) mah Johnson",
+        "Les Mercuriales",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 5,
-          "lost": 4,
+        "Brown Town": {
+          "won": 6,
+          "lost": 3,
           "tied": 0,
           "won_cats": [
-            "AST",
-            "BLK",
-            "FG%",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
             "REB",
+            "AST",
             "STL",
-            "FT%"
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "BLK",
+            "FT%",
+            "TO"
           ]
         },
-        "Brown Town": {
+        "Capture the Flagg": {
           "won": 6,
           "lost": 3,
           "tied": 0,
@@ -351,22 +351,22 @@
             "FT%"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 6,
-          "lost": 3,
+        "The Jokesters": {
+          "won": 5,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
-            "PTS",
             "AST",
-            "STL",
             "BLK",
             "FG%",
-            "3PM"
+            "3PM",
+            "TO"
           ],
           "lost_cats": [
+            "PTS",
             "REB",
-            "FT%",
-            "TO"
+            "STL",
+            "FT%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -387,19 +387,73 @@
             "TO"
           ]
         },
-        "Capture the Flagg": {
+        "Sengooning to Black Knueppels": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "3PM",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "FT%"
+          ]
+        },
+        "Scoot on my white durantula": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "AST",
+            "STL",
+            "FG%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "BLK",
+            "FT%",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
           "won": 6,
           "lost": 3,
           "tied": 0,
           "won_cats": [
             "PTS",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
             "REB",
+            "FT%",
+            "TO"
+          ]
+        },
+        "Les Mercuriales": {
+          "won": 5,
+          "lost": 4,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
             "AST",
             "STL",
             "FG%",
             "3PM"
           ],
           "lost_cats": [
+            "REB",
             "BLK",
             "FT%",
             "TO"
@@ -422,60 +476,6 @@
             "FT%",
             "TO"
           ]
-        },
-        "Sengooning to Black Knueppels": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "FT%"
-          ]
-        },
-        "Les Mercuriales": {
-          "won": 5,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "AST",
-            "STL",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "REB",
-            "BLK",
-            "FT%",
-            "TO"
-          ]
-        },
-        "Scoot on my white durantula": {
-          "won": 4,
-          "lost": 5,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "STL",
-            "FG%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "BLK",
-            "FT%",
-            "3PM"
-          ]
         }
       }
     },
@@ -485,14 +485,14 @@
       "logo_url": "https://mystique-api.fantasy.espn.com/apis/v1/domains/lm/images/a94f6fb0-aaea-11f0-ac72-978f48643a48",
       "total_teams_beaten": 10,
       "total_category_wins": 60,
-      "minutes_played": 1118.0,
-      "minutes_vs_opponent": 1118.0,
+      "minutes_played": 1068.0,
+      "minutes_vs_opponent": 1068.0,
       "opponent_name": "Dr.Js Team",
-      "minutes_vs_league_avg": 341.83333333333337,
-      "league_avg_minutes": 776.1666666666666,
-      "games_played": 35.0,
-      "games_played_vs_league_avg": 9.666666666666668,
-      "league_avg_games_played": 25.333333333333332,
+      "minutes_vs_league_avg": 285.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
+      "games_played": 33.0,
+      "games_played_vs_league_avg": 7.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 615.0,
         "REB": 203.0,
@@ -505,36 +505,18 @@
         "TO": 75.0
       },
       "beaten_teams": [
-        "The Jokesters",
         "Brown Town",
+        "Capture the Flagg",
         "Halinextyear",
         "Shai it with your chest ",
-        "Sugg(s) mah Johnson",
-        "Capture the Flagg",
+        "The Jokesters",
         "Kobe Verma",
-        "Dr.Js Team",
         "Sengooning to Black Knueppels",
-        "Les Mercuriales"
+        "Sugg(s) mah Johnson",
+        "Les Mercuriales",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 5,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "BLK",
-            "FT%",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "STL",
-            "FG%"
-          ]
-        },
         "Brown Town": {
           "won": 5,
           "lost": 4,
@@ -549,6 +531,24 @@
           "lost_cats": [
             "STL",
             "FG%",
+            "FT%",
+            "TO"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "STL",
             "FT%",
             "TO"
           ]
@@ -589,22 +589,22 @@
             "TO"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 7,
-          "lost": 2,
+        "The Jokesters": {
+          "won": 5,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
-            "PTS",
-            "REB",
             "AST",
-            "STL",
             "BLK",
             "FT%",
-            "3PM"
+            "3PM",
+            "TO"
           ],
           "lost_cats": [
-            "FG%",
-            "TO"
+            "PTS",
+            "REB",
+            "STL",
+            "FG%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -621,24 +621,6 @@
             "AST",
             "STL",
             "FG%",
-            "FT%",
-            "TO"
-          ]
-        },
-        "Capture the Flagg": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "STL",
             "FT%",
             "TO"
           ]
@@ -661,24 +643,6 @@
             "TO"
           ]
         },
-        "Dr.Js Team": {
-          "won": 7,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "FT%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "STL",
-            "TO"
-          ]
-        },
         "Sengooning to Black Knueppels": {
           "won": 5,
           "lost": 3,
@@ -694,6 +658,24 @@
             "REB",
             "AST",
             "FG%"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 7,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FT%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "FG%",
+            "TO"
           ]
         },
         "Les Mercuriales": {
@@ -713,6 +695,24 @@
             "STL",
             "TO"
           ]
+        },
+        "Dr.Js Team": {
+          "won": 7,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "FT%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "STL",
+            "TO"
+          ]
         }
       }
     },
@@ -725,11 +725,11 @@
       "minutes_played": 944.0,
       "minutes_vs_opponent": 944.0,
       "opponent_name": "Kelel Me Softly bby",
-      "minutes_vs_league_avg": 167.83333333333337,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": 161.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 30.0,
-      "games_played_vs_league_avg": 4.666666666666668,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": 4.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 699.0,
         "REB": 246.0,
@@ -743,12 +743,12 @@
       },
       "beaten_teams": [
         "Brown Town",
-        "Halinextyear",
-        "Sugg(s) mah Johnson",
         "Capture the Flagg",
-        "Dr.Js Team",
+        "Halinextyear",
         "Sengooning to Black Knueppels",
-        "Les Mercuriales"
+        "Sugg(s) mah Johnson",
+        "Les Mercuriales",
+        "Dr.Js Team"
       ],
       "matchup_details": {
         "Brown Town": {
@@ -761,6 +761,24 @@
             "AST",
             "STL",
             "FG%"
+          ],
+          "lost_cats": [
+            "BLK",
+            "FT%",
+            "TO"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "FG%",
+            "3PM"
           ],
           "lost_cats": [
             "BLK",
@@ -799,23 +817,6 @@
           "lost_cats": [
             "AST",
             "BLK",
-            "FG%",
-            "TO"
-          ]
-        },
-        "Sugg(s) mah Johnson": {
-          "won": 6,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FT%"
-          ],
-          "lost_cats": [
             "FG%",
             "TO"
           ]
@@ -838,24 +839,6 @@
             "TO"
           ]
         },
-        "Capture the Flagg": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "BLK",
-            "FT%",
-            "TO"
-          ]
-        },
         "Kobe Verma": {
           "won": 4,
           "lost": 5,
@@ -870,24 +853,6 @@
             "AST",
             "BLK",
             "FG%",
-            "3PM",
-            "TO"
-          ]
-        },
-        "Dr.Js Team": {
-          "won": 7,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "FT%"
-          ],
-          "lost_cats": [
             "3PM",
             "TO"
           ]
@@ -910,6 +875,41 @@
             "TO"
           ]
         },
+        "Scoot on my white durantula": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "STL",
+            "FG%"
+          ],
+          "lost_cats": [
+            "AST",
+            "BLK",
+            "FT%",
+            "3PM",
+            "TO"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 6,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FT%"
+          ],
+          "lost_cats": [
+            "FG%",
+            "TO"
+          ]
+        },
         "Les Mercuriales": {
           "won": 5,
           "lost": 3,
@@ -927,20 +927,20 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 4,
-          "lost": 5,
+        "Dr.Js Team": {
+          "won": 7,
+          "lost": 2,
           "tied": 0,
           "won_cats": [
             "PTS",
             "REB",
+            "AST",
             "STL",
-            "FG%"
+            "BLK",
+            "FG%",
+            "FT%"
           ],
           "lost_cats": [
-            "AST",
-            "BLK",
-            "FT%",
             "3PM",
             "TO"
           ]
@@ -956,11 +956,11 @@
       "minutes_played": 805.0,
       "minutes_vs_opponent": 805.0,
       "opponent_name": "Sugg(s) mah Johnson",
-      "minutes_vs_league_avg": 28.83333333333337,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": 22.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 25.0,
-      "games_played_vs_league_avg": -0.33333333333333215,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": -0.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 531.0,
         "REB": 173.0,
@@ -973,31 +973,14 @@
         "TO": 74.0
       },
       "beaten_teams": [
-        "Halinextyear",
-        "Sugg(s) mah Johnson",
         "Capture the Flagg",
-        "Dr.Js Team",
+        "Halinextyear",
         "Sengooning to Black Knueppels",
-        "Les Mercuriales"
+        "Sugg(s) mah Johnson",
+        "Les Mercuriales",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 4,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "BLK",
-            "FG%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "STL",
-            "FT%"
-          ]
-        },
         "Brown Town": {
           "won": 3,
           "lost": 5,
@@ -1011,6 +994,24 @@
             "PTS",
             "REB",
             "STL",
+            "FT%",
+            "TO"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "REB",
             "FT%",
             "TO"
           ]
@@ -1033,21 +1034,21 @@
             "TO"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 6,
-          "lost": 2,
+        "The Jokesters": {
+          "won": 4,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
-            "PTS",
             "AST",
-            "STL",
             "BLK",
             "FG%",
-            "FT%"
+            "TO"
           ],
           "lost_cats": [
+            "PTS",
             "REB",
-            "TO"
+            "STL",
+            "FT%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -1065,24 +1066,6 @@
             "REB",
             "FT%",
             "3PM",
-            "TO"
-          ]
-        },
-        "Capture the Flagg": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "REB",
-            "FT%",
             "TO"
           ]
         },
@@ -1104,24 +1087,6 @@
             "TO"
           ]
         },
-        "Dr.Js Team": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%"
-          ],
-          "lost_cats": [
-            "FT%",
-            "3PM",
-            "TO"
-          ]
-        },
         "Sengooning to Black Knueppels": {
           "won": 5,
           "lost": 4,
@@ -1138,6 +1103,41 @@
             "REB",
             "AST",
             "3PM"
+          ]
+        },
+        "Scoot on my white durantula": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "AST",
+            "STL",
+            "FG%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "BLK",
+            "FT%",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 6,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "FT%"
+          ],
+          "lost_cats": [
+            "REB",
+            "TO"
           ]
         },
         "Les Mercuriales": {
@@ -1158,22 +1158,22 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 4,
-          "lost": 5,
+        "Dr.Js Team": {
+          "won": 6,
+          "lost": 3,
           "tied": 0,
           "won_cats": [
-            "AST",
-            "STL",
-            "FG%",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
             "REB",
+            "AST",
+            "STL",
             "BLK",
+            "FG%"
+          ],
+          "lost_cats": [
             "FT%",
-            "3PM"
+            "3PM",
+            "TO"
           ]
         }
       }
@@ -1187,11 +1187,11 @@
       "minutes_played": 705.0,
       "minutes_vs_opponent": 705.0,
       "opponent_name": "Sengooning to Black Knueppels",
-      "minutes_vs_league_avg": -71.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": -77.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 25.0,
-      "games_played_vs_league_avg": -0.33333333333333215,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": -0.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 456.0,
         "REB": 226.0,
@@ -1205,30 +1205,13 @@
       },
       "beaten_teams": [
         "Brown Town",
-        "Halinextyear",
-        "Sugg(s) mah Johnson",
         "Capture the Flagg",
-        "Dr.Js Team",
-        "Sengooning to Black Knueppels"
+        "Halinextyear",
+        "Sengooning to Black Knueppels",
+        "Sugg(s) mah Johnson",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 3,
-          "lost": 5,
-          "tied": 0,
-          "won_cats": [
-            "BLK",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "STL",
-            "FG%",
-            "FT%"
-          ]
-        },
         "Brown Town": {
           "won": 5,
           "lost": 4,
@@ -1243,6 +1226,24 @@
           "lost_cats": [
             "PTS",
             "STL",
+            "FG%",
+            "FT%"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "3PM",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
             "FG%",
             "FT%"
           ]
@@ -1283,20 +1284,19 @@
             "FT%"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 6,
-          "lost": 3,
+        "The Jokesters": {
+          "won": 3,
+          "lost": 5,
           "tied": 0,
           "won_cats": [
-            "REB",
-            "AST",
-            "STL",
             "BLK",
             "3PM",
             "TO"
           ],
           "lost_cats": [
             "PTS",
+            "REB",
+            "STL",
             "FG%",
             "FT%"
           ]
@@ -1319,24 +1319,6 @@
             "3PM"
           ]
         },
-        "Capture the Flagg": {
-          "won": 6,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "FG%",
-            "FT%"
-          ]
-        },
         "Kobe Verma": {
           "won": 4,
           "lost": 5,
@@ -1353,24 +1335,6 @@
             "STL",
             "FG%",
             "3PM"
-          ]
-        },
-        "Dr.Js Team": {
-          "won": 7,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "FT%",
-            "TO"
           ]
         },
         "Sengooning to Black Knueppels": {
@@ -1408,6 +1372,42 @@
             "FT%",
             "3PM"
           ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 6,
+          "lost": 3,
+          "tied": 0,
+          "won_cats": [
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "3PM",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "FG%",
+            "FT%"
+          ]
+        },
+        "Dr.Js Team": {
+          "won": 7,
+          "lost": 2,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "FT%",
+            "TO"
+          ]
         }
       }
     },
@@ -1417,14 +1417,14 @@
       "logo_url": "https://mystique-api.fantasy.espn.com/apis/v1/domains/lm/images/a31c2d30-a3bb-11f0-9d0e-d3c969c03a65",
       "total_teams_beaten": 5,
       "total_category_wins": 48,
-      "minutes_played": 713.0,
-      "minutes_vs_opponent": 713.0,
+      "minutes_played": 673.0,
+      "minutes_vs_opponent": 673.0,
       "opponent_name": "Halinextyear",
-      "minutes_vs_league_avg": -63.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
-      "games_played": 23.0,
-      "games_played_vs_league_avg": -2.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "minutes_vs_league_avg": -109.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
+      "games_played": 22.0,
+      "games_played_vs_league_avg": -3.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 578.0,
         "REB": 178.0,
@@ -1437,28 +1437,28 @@
         "TO": 61.0
       },
       "beaten_teams": [
+        "Capture the Flagg",
         "Halinextyear",
         "Shai it with your chest ",
-        "Capture the Flagg",
-        "Dr.Js Team",
-        "Sengooning to Black Knueppels"
+        "Sengooning to Black Knueppels",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 3,
-          "lost": 5,
+        "Capture the Flagg": {
+          "won": 5,
+          "lost": 3,
           "tied": 0,
           "won_cats": [
-            "BLK",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
-            "REB",
             "AST",
             "STL",
-            "FG%"
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "REB",
+            "FT%",
+            "TO"
           ]
         },
         "Halinextyear": {
@@ -1496,21 +1496,21 @@
             "FG%"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 4,
-          "lost": 4,
+        "The Jokesters": {
+          "won": 3,
+          "lost": 5,
           "tied": 0,
           "won_cats": [
-            "PTS",
-            "STL",
             "BLK",
-            "FT%"
+            "FT%",
+            "TO"
           ],
           "lost_cats": [
+            "PTS",
             "REB",
             "AST",
-            "FG%",
-            "TO"
+            "STL",
+            "FG%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -1530,23 +1530,6 @@
             "3PM"
           ]
         },
-        "Capture the Flagg": {
-          "won": 5,
-          "lost": 3,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "AST",
-            "STL",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "REB",
-            "FT%",
-            "TO"
-          ]
-        },
         "Kobe Verma": {
           "won": 3,
           "lost": 6,
@@ -1563,24 +1546,6 @@
             "STL",
             "FG%",
             "3PM"
-          ]
-        },
-        "Dr.Js Team": {
-          "won": 7,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "FT%"
-          ],
-          "lost_cats": [
-            "3PM",
-            "TO"
           ]
         },
         "Sengooning to Black Knueppels": {
@@ -1601,6 +1566,41 @@
             "3PM"
           ]
         },
+        "Scoot on my white durantula": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "FG%",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 4,
+          "lost": 4,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "STL",
+            "BLK",
+            "FT%"
+          ],
+          "lost_cats": [
+            "REB",
+            "AST",
+            "FG%",
+            "TO"
+          ]
+        },
         "Les Mercuriales": {
           "won": 4,
           "lost": 5,
@@ -1619,22 +1619,22 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 4,
-          "lost": 5,
+        "Dr.Js Team": {
+          "won": 7,
+          "lost": 2,
           "tied": 0,
           "won_cats": [
-            "STL",
-            "FG%",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
             "REB",
             "AST",
+            "STL",
             "BLK",
-            "3PM"
+            "FG%",
+            "FT%"
+          ],
+          "lost_cats": [
+            "3PM",
+            "TO"
           ]
         }
       }
@@ -1648,11 +1648,11 @@
       "minutes_played": 886.0,
       "minutes_vs_opponent": 886.0,
       "opponent_name": "Les Mercuriales",
-      "minutes_vs_league_avg": 109.83333333333337,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": 103.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 29.0,
-      "games_played_vs_league_avg": 3.666666666666668,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": 3.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 615.0,
         "REB": 228.0,
@@ -1666,29 +1666,11 @@
       },
       "beaten_teams": [
         "Capture the Flagg",
-        "Halinextyear",
         "Sugg(s) mah Johnson",
+        "Halinextyear",
         "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 3,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "AST",
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "STL",
-            "BLK",
-            "FG%",
-            "FT%"
-          ]
-        },
         "Brown Town": {
           "won": 4,
           "lost": 5,
@@ -1703,6 +1685,24 @@
             "STL",
             "BLK",
             "FG%",
+            "FT%",
+            "TO"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 5,
+          "lost": 4,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "STL",
+            "BLK",
             "FT%",
             "TO"
           ]
@@ -1743,22 +1743,22 @@
             "TO"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 6,
-          "lost": 3,
+        "The Jokesters": {
+          "won": 3,
+          "lost": 6,
           "tied": 0,
           "won_cats": [
-            "PTS",
-            "REB",
             "AST",
-            "STL",
-            "BLK",
-            "3PM"
+            "3PM",
+            "TO"
           ],
           "lost_cats": [
+            "PTS",
+            "REB",
+            "STL",
+            "BLK",
             "FG%",
-            "FT%",
-            "TO"
+            "FT%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -1776,24 +1776,6 @@
             "FG%",
             "FT%",
             "3PM",
-            "TO"
-          ]
-        },
-        "Capture the Flagg": {
-          "won": 5,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "STL",
-            "BLK",
-            "FT%",
             "TO"
           ]
         },
@@ -1815,21 +1797,38 @@
             "TO"
           ]
         },
-        "Dr.Js Team": {
-          "won": 5,
-          "lost": 4,
+        "Scoot on my white durantula": {
+          "won": 3,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "REB",
+            "AST",
+            "FG%"
+          ],
+          "lost_cats": [
+            "STL",
+            "BLK",
+            "FT%",
+            "3PM",
+            "TO"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 6,
+          "lost": 3,
           "tied": 0,
           "won_cats": [
             "PTS",
             "REB",
             "AST",
+            "STL",
             "BLK",
-            "FG%"
+            "3PM"
           ],
           "lost_cats": [
-            "STL",
+            "FG%",
             "FT%",
-            "3PM",
             "TO"
           ]
         },
@@ -1851,18 +1850,19 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 3,
-          "lost": 5,
+        "Dr.Js Team": {
+          "won": 5,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
+            "PTS",
             "REB",
             "AST",
+            "BLK",
             "FG%"
           ],
           "lost_cats": [
             "STL",
-            "BLK",
             "FT%",
             "3PM",
             "TO"
@@ -1876,14 +1876,14 @@
       "logo_url": "https://i.postimg.cc/zfHNCgh0/IMG-5668.gif",
       "total_teams_beaten": 3,
       "total_category_wins": 42,
-      "minutes_played": 717.0,
-      "minutes_vs_opponent": 717.0,
+      "minutes_played": 800.0,
+      "minutes_vs_opponent": 800.0,
       "opponent_name": "Kobe Verma",
-      "minutes_vs_league_avg": -59.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
-      "games_played": 23.0,
-      "games_played_vs_league_avg": -2.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "minutes_vs_league_avg": 17.83333333333337,
+      "league_avg_minutes": 782.1666666666666,
+      "games_played": 26.0,
+      "games_played_vs_league_avg": 0.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 528.0,
         "REB": 183.0,
@@ -1896,29 +1896,11 @@
         "TO": 54.0
       },
       "beaten_teams": [
-        "Dr.Js Team",
+        "Sugg(s) mah Johnson",
         "Halinextyear",
-        "Sugg(s) mah Johnson"
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 3,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "BLK",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "FG%",
-            "3PM"
-          ]
-        },
         "Brown Town": {
           "won": 3,
           "lost": 5,
@@ -1970,20 +1952,20 @@
             "3PM"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 5,
-          "lost": 4,
+        "The Jokesters": {
+          "won": 3,
+          "lost": 6,
           "tied": 0,
           "won_cats": [
-            "PTS",
-            "STL",
             "BLK",
             "FT%",
             "TO"
           ],
           "lost_cats": [
+            "PTS",
             "REB",
             "AST",
+            "STL",
             "FG%",
             "3PM"
           ]
@@ -2024,23 +2006,6 @@
             "3PM"
           ]
         },
-        "Dr.Js Team": {
-          "won": 6,
-          "lost": 2,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "FT%"
-          ],
-          "lost_cats": [
-            "3PM",
-            "TO"
-          ]
-        },
         "Sengooning to Black Knueppels": {
           "won": 4,
           "lost": 5,
@@ -2053,6 +2018,42 @@
           ],
           "lost_cats": [
             "PTS",
+            "REB",
+            "AST",
+            "FG%",
+            "3PM"
+          ]
+        },
+        "Scoot on my white durantula": {
+          "won": 3,
+          "lost": 6,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 5,
+          "lost": 4,
+          "tied": 0,
+          "won_cats": [
+            "PTS",
+            "STL",
+            "BLK",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
             "REB",
             "AST",
             "FG%",
@@ -2077,22 +2078,21 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 3,
-          "lost": 6,
+        "Dr.Js Team": {
+          "won": 6,
+          "lost": 2,
           "tied": 0,
           "won_cats": [
-            "STL",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
             "REB",
             "AST",
             "BLK",
             "FG%",
-            "3PM"
+            "FT%"
+          ],
+          "lost_cats": [
+            "3PM",
+            "TO"
           ]
         }
       }
@@ -2106,11 +2106,11 @@
       "minutes_played": 735.0,
       "minutes_vs_opponent": 735.0,
       "opponent_name": "Shai it with your chest ",
-      "minutes_vs_league_avg": -41.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": -47.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 23.0,
-      "games_played_vs_league_avg": -2.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": -2.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 474.0,
         "REB": 196.0,
@@ -2123,27 +2123,10 @@
         "TO": 60.0
       },
       "beaten_teams": [
-        "Dr.Js Team",
-        "Halinextyear"
+        "Halinextyear",
+        "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 2,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "FG%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FT%"
-          ]
-        },
         "Brown Town": {
           "won": 4,
           "lost": 4,
@@ -2159,6 +2142,24 @@
             "STL",
             "BLK",
             "FT%"
+          ]
+        },
+        "Capture the Flagg": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "REB",
+            "AST",
+            "FG%",
+            "3PM"
+          ],
+          "lost_cats": [
+            "PTS",
+            "STL",
+            "BLK",
+            "FT%",
+            "TO"
           ]
         },
         "Halinextyear": {
@@ -2196,6 +2197,23 @@
             "FT%"
           ]
         },
+        "The Jokesters": {
+          "won": 2,
+          "lost": 6,
+          "tied": 0,
+          "won_cats": [
+            "FG%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FT%"
+          ]
+        },
         "Kelel Me Softly bby": {
           "won": 2,
           "lost": 7,
@@ -2212,24 +2230,6 @@
             "BLK",
             "FT%",
             "3PM"
-          ]
-        },
-        "Capture the Flagg": {
-          "won": 4,
-          "lost": 5,
-          "tied": 0,
-          "won_cats": [
-            "REB",
-            "AST",
-            "FG%",
-            "3PM"
-          ],
-          "lost_cats": [
-            "PTS",
-            "STL",
-            "BLK",
-            "FT%",
-            "TO"
           ]
         },
         "Kobe Verma": {
@@ -2250,24 +2250,6 @@
             "3PM"
           ]
         },
-        "Dr.Js Team": {
-          "won": 5,
-          "lost": 4,
-          "tied": 0,
-          "won_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%"
-          ],
-          "lost_cats": [
-            "STL",
-            "FT%",
-            "3PM",
-            "TO"
-          ]
-        },
         "Sengooning to Black Knueppels": {
           "won": 3,
           "lost": 6,
@@ -2283,6 +2265,24 @@
             "AST",
             "STL",
             "BLK",
+            "3PM"
+          ]
+        },
+        "Scoot on my white durantula": {
+          "won": 2,
+          "lost": 7,
+          "tied": 0,
+          "won_cats": [
+            "FG%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FT%",
             "3PM"
           ]
         },
@@ -2304,22 +2304,22 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 2,
-          "lost": 7,
+        "Dr.Js Team": {
+          "won": 5,
+          "lost": 4,
           "tied": 0,
           "won_cats": [
-            "FG%",
-            "TO"
-          ],
-          "lost_cats": [
             "PTS",
             "REB",
             "AST",
-            "STL",
             "BLK",
+            "FG%"
+          ],
+          "lost_cats": [
+            "STL",
             "FT%",
-            "3PM"
+            "3PM",
+            "TO"
           ]
         }
       }
@@ -2333,11 +2333,11 @@
       "minutes_played": 627.0,
       "minutes_vs_opponent": 627.0,
       "opponent_name": "Brown Town",
-      "minutes_vs_league_avg": -149.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": -155.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 21.0,
-      "games_played_vs_league_avg": -4.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": -4.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 381.0,
         "REB": 141.0,
@@ -2353,24 +2353,6 @@
         "Dr.Js Team"
       ],
       "matchup_details": {
-        "The Jokesters": {
-          "won": 2,
-          "lost": 7,
-          "tied": 0,
-          "won_cats": [
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "3PM"
-          ]
-        },
         "Brown Town": {
           "won": 3,
           "lost": 6,
@@ -2386,60 +2368,6 @@
             "AST",
             "BLK",
             "FG%",
-            "3PM"
-          ]
-        },
-        "Shai it with your chest ": {
-          "won": 3,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "STL",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "3PM"
-          ]
-        },
-        "Sugg(s) mah Johnson": {
-          "won": 3,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "STL",
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "3PM"
-          ]
-        },
-        "Kelel Me Softly bby": {
-          "won": 2,
-          "lost": 7,
-          "tied": 0,
-          "won_cats": [
-            "STL",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "FT%",
             "3PM"
           ]
         },
@@ -2459,6 +2387,60 @@
             "3PM"
           ]
         },
+        "Shai it with your chest ": {
+          "won": 3,
+          "lost": 6,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "3PM"
+          ]
+        },
+        "The Jokesters": {
+          "won": 2,
+          "lost": 7,
+          "tied": 0,
+          "won_cats": [
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
+            "3PM"
+          ]
+        },
+        "Kelel Me Softly bby": {
+          "won": 2,
+          "lost": 7,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "FT%",
+            "3PM"
+          ]
+        },
         "Kobe Verma": {
           "won": 3,
           "lost": 6,
@@ -2477,25 +2459,43 @@
             "3PM"
           ]
         },
-        "Dr.Js Team": {
-          "won": 6,
-          "lost": 3,
+        "Sengooning to Black Knueppels": {
+          "won": 3,
+          "lost": 6,
           "tied": 0,
           "won_cats": [
-            "REB",
-            "AST",
             "STL",
-            "BLK",
-            "FG%",
-            "FT%"
+            "FT%",
+            "TO"
           ],
           "lost_cats": [
             "PTS",
-            "3PM",
-            "TO"
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "3PM"
           ]
         },
-        "Sengooning to Black Knueppels": {
+        "Scoot on my white durantula": {
+          "won": 3,
+          "lost": 6,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
           "won": 3,
           "lost": 6,
           "tied": 0,
@@ -2531,22 +2531,22 @@
             "TO"
           ]
         },
-        "Scoot on my white durantula": {
-          "won": 3,
-          "lost": 6,
+        "Dr.Js Team": {
+          "won": 6,
+          "lost": 3,
           "tied": 0,
           "won_cats": [
+            "REB",
+            "AST",
             "STL",
-            "FT%",
-            "TO"
+            "BLK",
+            "FG%",
+            "FT%"
           ],
           "lost_cats": [
             "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "3PM"
+            "3PM",
+            "TO"
           ]
         }
       }
@@ -2560,11 +2560,11 @@
       "minutes_played": 538.0,
       "minutes_vs_opponent": 538.0,
       "opponent_name": "Scoot on my white durantula",
-      "minutes_vs_league_avg": -238.16666666666663,
-      "league_avg_minutes": 776.1666666666666,
+      "minutes_vs_league_avg": -244.16666666666663,
+      "league_avg_minutes": 782.1666666666666,
       "games_played": 21.0,
-      "games_played_vs_league_avg": -4.333333333333332,
-      "league_avg_games_played": 25.333333333333332,
+      "games_played_vs_league_avg": -4.5,
+      "league_avg_games_played": 25.5,
       "category_totals": {
         "PTS": 438.0,
         "REB": 137.0,
@@ -2578,7 +2578,7 @@
       },
       "beaten_teams": [],
       "matchup_details": {
-        "The Jokesters": {
+        "Brown Town": {
           "won": 2,
           "lost": 7,
           "tied": 0,
@@ -2596,9 +2596,9 @@
             "FT%"
           ]
         },
-        "Brown Town": {
+        "Capture the Flagg": {
           "won": 2,
-          "lost": 7,
+          "lost": 6,
           "tied": 0,
           "won_cats": [
             "3PM",
@@ -2608,7 +2608,6 @@
             "PTS",
             "REB",
             "AST",
-            "STL",
             "BLK",
             "FG%",
             "FT%"
@@ -2650,13 +2649,11 @@
             "FG%"
           ]
         },
-        "Sugg(s) mah Johnson": {
-          "won": 4,
-          "lost": 5,
+        "The Jokesters": {
+          "won": 2,
+          "lost": 7,
           "tied": 0,
           "won_cats": [
-            "STL",
-            "FT%",
             "3PM",
             "TO"
           ],
@@ -2664,8 +2661,10 @@
             "PTS",
             "REB",
             "AST",
+            "STL",
             "BLK",
-            "FG%"
+            "FG%",
+            "FT%"
           ]
         },
         "Kelel Me Softly bby": {
@@ -2686,23 +2685,6 @@
             "3PM"
           ]
         },
-        "Capture the Flagg": {
-          "won": 2,
-          "lost": 6,
-          "tied": 0,
-          "won_cats": [
-            "3PM",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "BLK",
-            "FG%",
-            "FT%"
-          ]
-        },
         "Kobe Verma": {
           "won": 2,
           "lost": 7,
@@ -2739,24 +2721,6 @@
             "FG%"
           ]
         },
-        "Les Mercuriales": {
-          "won": 2,
-          "lost": 7,
-          "tied": 0,
-          "won_cats": [
-            "FT%",
-            "TO"
-          ],
-          "lost_cats": [
-            "PTS",
-            "REB",
-            "AST",
-            "STL",
-            "BLK",
-            "FG%",
-            "3PM"
-          ]
-        },
         "Scoot on my white durantula": {
           "won": 2,
           "lost": 7,
@@ -2772,6 +2736,42 @@
             "BLK",
             "FG%",
             "FT%",
+            "3PM"
+          ]
+        },
+        "Sugg(s) mah Johnson": {
+          "won": 4,
+          "lost": 5,
+          "tied": 0,
+          "won_cats": [
+            "STL",
+            "FT%",
+            "3PM",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "BLK",
+            "FG%"
+          ]
+        },
+        "Les Mercuriales": {
+          "won": 2,
+          "lost": 7,
+          "tied": 0,
+          "won_cats": [
+            "FT%",
+            "TO"
+          ],
+          "lost_cats": [
+            "PTS",
+            "REB",
+            "AST",
+            "STL",
+            "BLK",
+            "FG%",
             "3PM"
           ]
         }
